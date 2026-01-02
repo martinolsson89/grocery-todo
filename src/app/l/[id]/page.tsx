@@ -26,11 +26,11 @@ import {
 } from "@/src/components/ui/dropdown-menu";
 import { Input } from "@/src/components/ui/input";
 
-import { useLocalStorageBoard } from "./hooks/useLocalStorageBoard";
+import { useSupabaseBoard } from "./hooks/useSupabaseBoard";
 import { ListStats } from "./components/ListStats";
 import { SortableItemRow } from "./components/SortableItemRow";
-import { BoardState, DEFAULT_BOARD, type Item } from "./types";
-import { findContainer, newItemId, storageKey } from "./utils";
+import { BoardState, type Item } from "./types";
+import { findContainer, newItemId } from "./utils";
 
 export default function ListPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: listId } = use(params);
@@ -44,7 +44,7 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
     })
   );
 
-  const [board, setBoard] = useLocalStorageBoard(listId);
+  const { board, setBoard, isLoading, error, resetBoard } = useSupabaseBoard(listId);
   const [newText, setNewText] = useState("");
   const [targetColumn, setTargetColumn] = useState("ovrigt");
   const [copied, setCopied] = useState(false);
@@ -169,6 +169,28 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
     });
   }
 
+  if (isLoading) {
+    return (
+      <main className="min-h-screen p-3 sm:p-4 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Laddar listan...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="min-h-screen p-3 sm:p-4 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-destructive mb-2">Ett fel uppstod</p>
+          <p className="text-muted-foreground text-sm">{error}</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen p-3 sm:p-4 space-y-3 max-w-full">
       <div className="sticky top-0 z-20 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 pb-3">
@@ -202,10 +224,7 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
                 variant="destructive"
                 size="sm"
                 className="touch-manipulation"
-                onClick={() => {
-                  localStorage.removeItem(storageKey(listId));
-                  setBoard(DEFAULT_BOARD);
-                }}
+                onClick={() => resetBoard()}
               >
                 Reset
               </Button>
