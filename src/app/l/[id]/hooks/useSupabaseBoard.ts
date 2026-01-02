@@ -80,6 +80,11 @@ export function useSupabaseBoard(listId: string) {
         .insert({ id: listId });
 
       if (listError) {
+        // Handle duplicate key - list was created by another request
+        if (listError.code === "23505") {
+          // List already exists, this is fine - proceed normally
+          return true;
+        }
         console.error("Error creating list:", listError.message, listError.code, listError.details);
         setError(`Failed to create list: ${listError.message}`);
         return false;
@@ -98,6 +103,10 @@ export function useSupabaseBoard(listId: string) {
         .insert(columnsToInsert);
 
       if (columnsError) {
+        // Also handle duplicate columns gracefully
+        if (columnsError.code === "23505") {
+          return true;
+        }
         console.error("Error creating columns:", columnsError.message, columnsError.code, columnsError.details);
         setError(`Failed to create columns: ${columnsError.message}`);
         return false;

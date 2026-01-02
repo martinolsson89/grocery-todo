@@ -46,7 +46,7 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
 
   const { board, setBoard, isLoading, error, resetBoard } = useSupabaseBoard(listId);
   const [newText, setNewText] = useState("");
-  const [targetColumn, setTargetColumn] = useState("ovrigt");
+  const [targetColumn, setTargetColumn] = useState("frukt_gront");
   const [copied, setCopied] = useState(false);
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
 
