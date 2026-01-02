@@ -16,15 +16,15 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
-import { Button } from "@/src/app/components/ui/button";
-import { Card, CardContent } from "@/src/app/components/ui/card";
+import { Button } from "@/src/components/ui/button";
+import { Card, CardContent } from "@/src/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/src/app/components/ui/dropdown-menu";
-import { Input } from "@/src/app/components/ui/input";
+} from "@/src/components/ui/dropdown-menu";
+import { Input } from "@/src/components/ui/input";
 
 import { useLocalStorageBoard } from "./hooks/useLocalStorageBoard";
 import { ListStats } from "./components/ListStats";

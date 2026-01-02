@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Button } from "@/src/app/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/src/app/components/ui/card";
+import { Button } from "@/src/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/src/components/ui/card";
 
 function newListId() {
   // short-ish id for nice URLs (you can switch to crypto.randomUUID() if you prefer)

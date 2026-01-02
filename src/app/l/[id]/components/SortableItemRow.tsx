@@ -2,7 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Button } from "@/src/app/components/ui/button";
+import { Button } from "@/src/components/ui/button";
 import type { Item } from "../types";
 
 interface SortableItemRowProps {
