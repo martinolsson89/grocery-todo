@@ -10,12 +10,11 @@ import {
   MouseSensor,
   TouchSensor,
   closestCorners,
+  useDroppable,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
-
-import { useDroppable } from "@dnd-kit/core";
 
 import { Button } from "@/src/app/components/ui/button";
 import { Card, CardContent } from "@/src/app/components/ui/card";
@@ -28,8 +27,9 @@ import {
 import { Input } from "@/src/app/components/ui/input";
 
 import { useLocalStorageBoard } from "./hooks/useLocalStorageBoard";
+import { ListStats } from "./components/ListStats";
 import { SortableItemRow } from "./components/SortableItemRow";
-import { BoardState, DEFAULT_BOARD } from "./types";
+import { BoardState, DEFAULT_BOARD, type Item } from "./types";
 import { findContainer, newItemId, storageKey } from "./utils";
 
 export default function ListPage({ params }: { params: Promise<{ id: string }> }) {
@@ -171,89 +171,92 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
 
   return (
     <main className="min-h-screen p-3 sm:p-4 space-y-3 max-w-full">
-      {/* Header */}
-      <div className="flex flex-col gap-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <h1 className="text-xl sm:text-2xl font-semibold truncate">Inköpslista</h1>
-          </div>
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 pb-3">
+        {/* Header */}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-2xl font-semibold truncate">Inköpslista ({listId})</h1>
+              <ListStats board={board} />
+            </div>
 
-          <div className="flex gap-2 shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
-              className="touch-manipulation"
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(window.location.href);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                } catch {
-                  setCopied(false);
-                }
-              }}
-            >
-              {copied ? "✓" : "📋"}
-            </Button>
+            <div className="flex gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                className="touch-manipulation"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(window.location.href);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  } catch {
+                    setCopied(false);
+                  }
+                }}
+              >
+                {copied ? "✓" : "📋"}
+              </Button>
 
-            <Button
-              variant="destructive"
-              size="sm"
-              className="touch-manipulation"
-              onClick={() => {
-                localStorage.removeItem(storageKey(listId));
-                setBoard(DEFAULT_BOARD);
-              }}
-            >
-              Reset
-            </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="touch-manipulation"
+                onClick={() => {
+                  localStorage.removeItem(storageKey(listId));
+                  setBoard(DEFAULT_BOARD);
+                }}
+              >
+                Reset
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Add Item Form */}
-      <Card>
-        <CardContent className="p-3 sm:p-4 space-y-2">
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Input
-              placeholder="Lägg till vara..."
-              value={newText}
-              onChange={(e) => setNewText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") addItem();
-              }}
-              className="flex-1 h-11 touch-manipulation text-base"
-            />
-          </div>
-          <div className="flex gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="flex-1 sm:flex-none sm:min-w-40 justify-between touch-manipulation h-11"
-                >
-                  <span className="truncate">{board.columns[targetColumn]?.title ?? "Övrigt"}</span>
-                  <span className="ml-2 shrink-0">▼</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-56 max-h-80 overflow-y-auto">
-                {board.columnOrder.map((colId) => (
-                  <DropdownMenuItem
-                    key={colId}
-                    onClick={() => setTargetColumn(colId)}
-                    className="touch-manipulation py-3"
+        {/* Add Item Form */}
+        <Card className="mt-3">
+          <CardContent className="p-3 sm:p-4 space-y-2">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                placeholder="Lägg till vara..."
+                value={newText}
+                onChange={(e) => setNewText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") addItem();
+                }}
+                className="flex-1 h-11 touch-manipulation text-base"
+              />
+            </div>
+            <div className="flex gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="flex-1 sm:flex-none sm:min-w-40 justify-between touch-manipulation h-11"
                   >
-                    {board.columns[colId].title}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button onClick={addItem} className="flex-1 sm:flex-none touch-manipulation h-11">
-              Lägg till
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+                    <span className="truncate">{board.columns[targetColumn]?.title ?? "Övrigt"}</span>
+                    <span className="ml-2 shrink-0">▼</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56 max-h-80 overflow-y-auto">
+                  {board.columnOrder.map((colId) => (
+                    <DropdownMenuItem
+                      key={colId}
+                      onClick={() => setTargetColumn(colId)}
+                      className="touch-manipulation py-3"
+                    >
+                      {board.columns[colId].title}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button onClick={addItem} className="flex-1 sm:flex-none touch-manipulation h-11">
+                Lägg till
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Vertical Scrolling Sections */}
       <DndContext
@@ -298,8 +301,6 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
 }
 
 // Section Column Component
-import type { Item } from "./types";
-
 interface SectionColumnProps {
   sectionId: string;
   title: string;
