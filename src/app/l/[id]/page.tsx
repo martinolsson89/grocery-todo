@@ -52,6 +52,17 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
 
   const activeItem = activeItemId ? board.items[activeItemId] : null;
 
+  async function cleanBoard() {
+    const confirmed = window.confirm("Är du säker på att du vill rensa listan?");
+    if (!confirmed) return;
+
+    try {
+      await Promise.resolve(resetBoard());
+    } catch (e) {
+      console.error("Failed to reset board", e);
+    }
+  }
+
   const columnsInOrder = useMemo(
     () => board.columnOrder.map((id) => board.columns[id]),
     [board]
@@ -224,9 +235,9 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
                 variant="destructive"
                 size="sm"
                 className="touch-manipulation"
-                onClick={() => resetBoard()}
+                onClick={cleanBoard}
               >
-                Reset
+                Rensa
               </Button>
             </div>
           </div>

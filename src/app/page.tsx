@@ -22,34 +22,34 @@ export default function HomePage() {
     const { data, error } = await supabase.rpc("delete_old_lists");
     
     if (error) {
-      setCleanupMessage("Failed to cleanup lists");
+      setCleanupMessage("Något gick fel med att ta bort gamla listor.");
       console.error(error);
     } else {
-      setCleanupMessage(`Deleted ${data} old lists`);
+      setCleanupMessage(`Tog bort ${data} gamla listor`);
     }
     
     setTimeout(() => setCleanupMessage(null), 3000);
   }
 
-  async function deleteAllLists() {
-    const confirmed = window.confirm(
-      "Är du säker på att du vill ta bort ALLA listor? Detta kan inte ångras."
-    );
+  // async function deleteAllLists() {
+  //   const confirmed = window.confirm(
+  //     "Är du säker på att du vill ta bort ALLA listor? Detta kan inte ångras."
+  //   );
     
-    if (!confirmed) return;
+  //   if (!confirmed) return;
 
-    const supabase = createClient();
-    const { data, error } = await supabase.rpc("delete_all_lists");
+  //   const supabase = createClient();
+  //   const { data, error } = await supabase.rpc("delete_all_lists");
     
-    if (error) {
-      setCleanupMessage("Failed to delete all lists");
-      console.error("Delete all error:", error.message, error.code, error.details);
-    } else {
-      setCleanupMessage(`Deleted ${data} lists`);
-    }
+  //   if (error) {
+  //     setCleanupMessage("Failed to delete all lists");
+  //     console.error("Delete all error:", error.message, error.code, error.details);
+  //   } else {
+  //     setCleanupMessage(`Deleted ${data} lists`);
+  //   }
     
-    setTimeout(() => setCleanupMessage(null), 3000);
-  }
+  //   setTimeout(() => setCleanupMessage(null), 3000);
+  // }
 
   return (
     <main className="min-h-screen p-6 flex items-center justify-center">
@@ -91,14 +91,14 @@ export default function HomePage() {
               </Button>
             </div>
             
-            <div className="flex items-center justify-between">
+            {/* <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">
                 Ta bort alla listor från databasen
               </span>
               <Button variant="destructive" size="sm" onClick={deleteAllLists}>
                 Ta bort alla
               </Button>
-            </div>
+            </div> */}
           </div>
         </CardContent>
       </Card>
