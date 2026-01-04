@@ -2,6 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { PencilIcon, Trash2Icon } from "lucide-react";
 import { Button } from "@/src/components/ui/button";
 import type { Item } from "../types";
 
@@ -15,6 +16,8 @@ interface SortableItemRowProps {
 export function SortableItemRow({ item, onToggle, onEdit, onDelete }: SortableItemRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.id });
+
+  const displayText = item.text.length > 20 ? `${item.text.slice(0, 20)}…` : item.text;
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -48,27 +51,43 @@ export function SortableItemRow({ item, onToggle, onEdit, onDelete }: SortableIt
         className="h-5 w-5 touch-manipulation"
       />
 
-      <span className={["flex-1", item.checked ? "line-through text-muted-foreground" : ""].join(" ")}>
-        {item.text}
+      <span
+        className={["flex-1", item.checked ? "line-through text-muted-foreground" : ""].join(" ")}
+        title={item.text}
+      >
+        {displayText}
       </span>
 
       <div className="ml-auto flex items-center gap-1">
-         <Button
+        <Button
           type="button"
           variant="ghost"
-          size="sm"
+          size="icon-sm"
+          aria-label="Ändra"
+          title="Ändra"
           onClick={(e) => {
             e.preventDefault();
-            e.stopPropagation(); // prevents drag/row click interference
+            e.stopPropagation();
             onEdit(item.id);
           }}
         >
-          Ändra
+          <PencilIcon />
         </Button>
 
-      <Button variant="ghost" size="sm" onClick={() => onDelete(item.id)}>
-        Radera
-      </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Radera"
+          title="Radera"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onDelete(item.id);
+          }}
+        >
+          <Trash2Icon />
+        </Button>
       </div>
 
     </div>

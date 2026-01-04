@@ -317,13 +317,16 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
       <div className="sticky top-0 z-20 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 pb-3">
         {/* Header */}
         <div className="flex flex-col gap-3">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-xl sm:text-2xl font-semibold truncate">Inköpslista ({listId})</h1>
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-2xl font-semibold leading-tight wrap-break-word">
+                Inköpslista
+                <span className="text-muted-foreground"> ({listId})</span>
+              </h1>
               <ListStats board={board} />
             </div>
 
-            <div className="flex gap-2 shrink-0">
+            <div className="flex flex-wrap gap-2 justify-end">
               <div className="flex gap-2">
                 <Button
                   variant={viewMode === "sections" ? "secondary" : "outline"}
