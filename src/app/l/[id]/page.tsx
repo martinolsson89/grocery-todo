@@ -66,6 +66,12 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
   const [editId, setEditId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
 
+  const [viewMode, setViewMode] = useState<"sections" | "flat">("sections");
+
+  const [addFormOpen, setAddFormOpen] = useState(true);
+
+  const [checkFilter, setCheckFilter] = useState<"all" | "checked" | "unchecked">("all");
+
   const activeItem = activeItemId ? board.items[activeItemId] : null;
 
   async function cleanBoard() {
@@ -83,6 +89,22 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
     () => board.columnOrder.map((id) => board.columns[id]),
     [board]
   );
+
+  const flatItemIds = useMemo(() => {
+    return columnsInOrder.flatMap((col) => col.itemIds);
+  }, [columnsInOrder]);
+
+  // filtered IDs/items for flat view (SortableContext must use these)
+  const visibleFlatItemIds = useMemo(() => {
+    if (checkFilter === "all") return flatItemIds;
+
+    const wantChecked = checkFilter === "checked";
+    return flatItemIds.filter((id) => board.items[id]?.checked === wantChecked);
+  }, [checkFilter, flatItemIds, board.items]);
+
+  const visibleFlatItems = useMemo(() => {
+    return visibleFlatItemIds.map((id) => board.items[id]).filter(Boolean);
+  }, [visibleFlatItemIds, board.items]);
 
   function addItem() {
     const text = newText.trim();
@@ -126,7 +148,7 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
     });
   }
 
-    function openEdit(id: string) {
+  function openEdit(id: string) {
     const current = board.items[id];
     if (!current) return;
 
@@ -302,78 +324,140 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
             </div>
 
             <div className="flex gap-2 shrink-0">
+              <div className="flex gap-2">
+                <Button
+                  variant={viewMode === "sections" ? "secondary" : "outline"}
+                  size="sm"
+                  className="touch-manipulation"
+                  onClick={() => setViewMode("sections")}
+                >
+                  Sektioner
+                </Button>
+                <Button
+                  variant={viewMode === "flat" ? "secondary" : "outline"}
+                  size="sm"
+                  className="touch-manipulation"
+                  onClick={() => setViewMode("flat")}
+                >
+                  Lista
+                </Button>
+              </div>
+
               <Button
                 variant="outline"
                 size="sm"
                 className="touch-manipulation"
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(window.location.href);
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
-                  } catch {
-                    setCopied(false);
-                  }
-                }}
+                aria-expanded={addFormOpen}
+                aria-controls="add-item-form"
+                onClick={() => setAddFormOpen((v) => !v)}
               >
-                {copied ? "✓" : "📋"}
+                {addFormOpen ? "Dölj" : "Lägg till"}
               </Button>
 
-              <Button
-                variant="destructive"
-                size="sm"
-                className="touch-manipulation"
-                onClick={cleanBoard}
-              >
-                Rensa
-              </Button>
+              <div className="flex gap-2 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="touch-manipulation"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(window.location.href);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    } catch {
+                      setCopied(false);
+                    }
+                  }}
+                >
+                  {copied ? "✓" : "📋"}
+                </Button>
+
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="touch-manipulation"
+                  onClick={cleanBoard}
+                >
+                  Rensa
+                </Button>
+              </div>
             </div>
+          </div>
+
+          {/* Filters */}
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              variant={checkFilter === "all" ? "secondary" : "outline"}
+              size="sm"
+              className="touch-manipulation"
+              onClick={() => setCheckFilter("all")}
+            >
+              Alla
+            </Button>
+            <Button
+              variant={checkFilter === "unchecked" ? "secondary" : "outline"}
+              size="sm"
+              className="touch-manipulation"
+              onClick={() => setCheckFilter("unchecked")}
+            >
+              Ej avprickade
+            </Button>
+            <Button
+              variant={checkFilter === "checked" ? "secondary" : "outline"}
+              size="sm"
+              className="touch-manipulation"
+              onClick={() => setCheckFilter("checked")}
+            >
+              Avprickade
+            </Button>
           </div>
         </div>
 
         {/* Add Item Form */}
-        <Card className="mt-3">
-          <CardContent className="p-3 sm:p-4 space-y-2">
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Input
-                placeholder="Lägg till vara..."
-                value={newText}
-                onChange={(e) => setNewText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") addItem();
-                }}
-                className="flex-1 h-11 touch-manipulation text-base"
-              />
-            </div>
-            <div className="flex gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="flex-1 sm:flex-none sm:min-w-40 justify-between touch-manipulation h-11"
-                  >
-                    <span className="truncate">{board.columns[targetColumn]?.title ?? "Övrigt"}</span>
-                    <span className="ml-2 shrink-0">▼</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-56 max-h-80 overflow-y-auto">
-                  {board.columnOrder.map((colId) => (
-                    <DropdownMenuItem
-                      key={colId}
-                      onClick={() => setTargetColumn(colId)}
-                      className="touch-manipulation py-3"
+        {addFormOpen ? (
+          <Card id="add-item-form" className="mt-3">
+            <CardContent className="p-3 sm:p-4 space-y-2">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Input
+                  placeholder="Lägg till vara..."
+                  value={newText}
+                  onChange={(e) => setNewText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") addItem();
+                  }}
+                  className="flex-1 h-11 touch-manipulation text-base"
+                />
+              </div>
+              <div className="flex gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="flex-1 sm:flex-none sm:min-w-40 justify-between touch-manipulation h-11"
                     >
-                      {board.columns[colId].title}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button onClick={addItem} className="flex-1 sm:flex-none touch-manipulation h-11">
-                Lägg till
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                      <span className="truncate">{board.columns[targetColumn]?.title ?? "Övrigt"}</span>
+                      <span className="ml-2 shrink-0">▼</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-56 max-h-80 overflow-y-auto">
+                    {board.columnOrder.map((colId) => (
+                      <DropdownMenuItem
+                        key={colId}
+                        onClick={() => setTargetColumn(colId)}
+                        className="touch-manipulation py-3"
+                      >
+                        {board.columns[colId].title}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button onClick={addItem} className="flex-1 sm:flex-none touch-manipulation h-11">
+                  Lägg till
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null }
       </div>
 
       {/* Vertical Scrolling Sections */}
@@ -384,28 +468,72 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
         onDragOver={onDragOver}
         onDragEnd={onDragEnd}
       >
-        <div className="space-y-3 sm:space-y-4 pb-4">
-          <div className="flex flex-col gap-3 sm:gap-4">
-            {columnsInOrder.map((section) => {
-              const items = section.itemIds.map((id) => board.items[id]).filter(Boolean);
-              const hasItems = items.length > 0;
+        {viewMode === "sections" ? (
+          <div className="space-y-3 sm:space-y-4 pb-4">
+            <div className="flex flex-col gap-3 sm:gap-4">
+              {columnsInOrder.map((section) => {
+                const visibleItemIds =
+                  checkFilter === "all"
+                    ? section.itemIds
+                    : section.itemIds.filter((id) => {
+                        const wantChecked = checkFilter === "checked";
+                        return board.items[id]?.checked === wantChecked;
+                      });
 
-              return (
-                <SectionColumn
-                  key={section.id}
-                  sectionId={section.id}
-                  title={section.title}
-                  itemIds={section.itemIds}
-                  items={items}
-                  hasItems={hasItems}
-                  onToggle={toggleItem}
-                  onEdit={openEdit}
-                  onDelete={deleteItem}
-                />
-              );
-            })}
+                const items = visibleItemIds.map((id) => board.items[id]).filter(Boolean);
+                const hasItems = items.length > 0;
+
+                return (
+                  <SectionColumn
+                    key={section.id}
+                    sectionId={section.id}
+                    title={section.title}
+                    itemIds={visibleItemIds}
+                    items={items}
+                    hasItems={hasItems}
+                    onToggle={toggleItem}
+                    onEdit={openEdit}
+                    onDelete={deleteItem}
+                  />
+                );
+              })}
+            </div>
           </div>
-        </div>
+        ) : (
+          // Flat (continuous) list view
+          <Card className="pb-4">
+            <CardContent className="p-2 sm:p-3">
+              <div className="sticky top-0 bg-card/90 backdrop-blur-sm px-2 py-2 border-b rounded-md">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium text-sm">Alla varor</h3>
+                  <span className="text-xs text-muted-foreground">
+                    {visibleFlatItems.length} st
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-1 space-y-1.5">
+                <SortableContext items={visibleFlatItemIds} strategy={verticalListSortingStrategy}>
+                  {visibleFlatItems.map((item) => (
+                    <SortableItemRow
+                      key={item.id}
+                      item={item}
+                      onToggle={toggleItem}
+                      onEdit={openEdit}
+                      onDelete={deleteItem}
+                    />
+                  ))}
+                </SortableContext>
+
+                {visibleFlatItems.length === 0 && (
+                  <div className="rounded-md border border-dashed p-4 text-xs text-center text-muted-foreground">
+                    Inga varor
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <DragOverlay dropAnimation={null} style={{ position: "fixed" }}>
           {activeItem ? (
