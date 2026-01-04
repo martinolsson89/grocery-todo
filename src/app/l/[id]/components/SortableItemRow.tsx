@@ -8,10 +8,11 @@ import type { Item } from "../types";
 interface SortableItemRowProps {
   item: Item;
   onToggle: (id: string) => void;
+  onEdit: (id: string) => void;
   onDelete: (id: string) => void;
 }
 
-export function SortableItemRow({ item, onToggle, onDelete }: SortableItemRowProps) {
+export function SortableItemRow({ item, onToggle, onEdit, onDelete }: SortableItemRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.id });
 
@@ -51,9 +52,25 @@ export function SortableItemRow({ item, onToggle, onDelete }: SortableItemRowPro
         {item.text}
       </span>
 
+      <div className="ml-auto flex items-center gap-1">
+         <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation(); // prevents drag/row click interference
+            onEdit(item.id);
+          }}
+        >
+          Edit
+        </Button>
+
       <Button variant="ghost" size="sm" onClick={() => onDelete(item.id)}>
         Delete
       </Button>
+      </div>
+
     </div>
   );
 }

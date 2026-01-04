@@ -26,6 +26,18 @@ import {
 } from "@/src/components/ui/dropdown-menu";
 import { Input } from "@/src/components/ui/input";
 
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/src/components/ui/dialog";
+
+import { Label } from "@/src/components/ui/label"
+
 import { useSupabaseBoard } from "./hooks/useSupabaseBoard";
 import { ListStats } from "./components/ListStats";
 import { SortableItemRow } from "./components/SortableItemRow";
@@ -49,6 +61,10 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
   const [targetColumn, setTargetColumn] = useState("frukt_gront");
   const [copied, setCopied] = useState(false);
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
 
   const activeItem = activeItemId ? board.items[activeItemId] : null;
 
@@ -108,6 +124,44 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
 
       return next;
     });
+  }
+
+    function openEdit(id: string) {
+    const current = board.items[id];
+    if (!current) return;
+
+    setEditId(id);
+    setEditText(current.text);
+    setEditOpen(true);
+  }
+
+  function handleEditOpenChange(open: boolean) {
+    setEditOpen(open);
+    if (!open) {
+      setEditId(null);
+      setEditText("");
+    }
+  }
+
+  function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+
+    const id = editId;
+    if (!id) return;
+
+    const nextText = editText.trim();
+    if (!nextText) return;
+
+    setBoard((prev) => {
+      // item might have been deleted while dialog was open
+      if (!prev.items[id]) return prev;
+
+      const next: BoardState = structuredClone(prev);
+      next.items[id].text = nextText;
+      return next;
+    });
+
+    handleEditOpenChange(false);
   }
 
   function onDragStart(event: DragStartEvent) {
@@ -204,6 +258,40 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
 
   return (
     <main className="min-h-screen p-3 sm:p-4 space-y-3 max-w-full">
+      {/* Edit Dialog (rendered once at page level) */}
+      <Dialog open={editOpen} onOpenChange={handleEditOpenChange}>
+        <DialogContent className="sm:max-w-[425px]">
+          <form onSubmit={saveEdit}>
+            <DialogHeader>
+              <DialogTitle>Edit item</DialogTitle>
+              <DialogDescription>Edit item text here.</DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-3">
+                <Label htmlFor="edit-text">Text</Label>
+                <Input
+                  id="edit-text"
+                  name="text"
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">
+                  Cancel
+                </Button>
+              </DialogClose>
+              <Button type="submit">Save changes</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <div className="sticky top-0 z-20 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 pb-3">
         {/* Header */}
         <div className="flex flex-col gap-3">
@@ -311,6 +399,7 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
                   items={items}
                   hasItems={hasItems}
                   onToggle={toggleItem}
+                  onEdit={openEdit}
                   onDelete={deleteItem}
                 />
               );
@@ -338,6 +427,7 @@ interface SectionColumnProps {
   items: Item[];
   hasItems: boolean;
   onToggle: (id: string) => void;
+  onEdit: (id: string) => void;
   onDelete: (id: string) => void;
 }
 
@@ -348,6 +438,7 @@ function SectionColumn({
   items,
   hasItems,
   onToggle,
+  onEdit,
   onDelete,
 }: SectionColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: sectionId });
@@ -379,6 +470,7 @@ function SectionColumn({
               key={item.id}
               item={item}
               onToggle={onToggle}
+              onEdit={onEdit}
               onDelete={onDelete}
             />
           ))}
