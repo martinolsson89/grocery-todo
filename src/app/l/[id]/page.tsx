@@ -260,11 +260,11 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
     <main className="min-h-screen p-3 sm:p-4 space-y-3 max-w-full">
       {/* Edit Dialog (rendered once at page level) */}
       <Dialog open={editOpen} onOpenChange={handleEditOpenChange}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-106.25">
           <form onSubmit={saveEdit}>
             <DialogHeader>
-              <DialogTitle>Edit item</DialogTitle>
-              <DialogDescription>Edit item text here.</DialogDescription>
+              <DialogTitle>Ändra vara</DialogTitle>
+              <DialogDescription>Ändra varans namn här.</DialogDescription>
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
@@ -283,10 +283,10 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
             <DialogFooter>
               <DialogClose asChild>
                 <Button type="button" variant="outline">
-                  Cancel
+                  Avbryt
                 </Button>
               </DialogClose>
-              <Button type="submit">Save changes</Button>
+              <Button type="submit">Spara ändring</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -443,6 +443,8 @@ function SectionColumn({
 }: SectionColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: sectionId });
 
+  const toggledCount = useMemo(() => items.reduce((acc, item) => acc + (item.checked ? 1 : 0), 0), [items]);
+
   return (
     <div
       className={[
@@ -456,7 +458,7 @@ function SectionColumn({
           <h3 className="font-medium text-sm">{title}</h3>
           {hasItems && (
             <span className="text-xs text-muted-foreground bg-background px-2 py-0.5 rounded-full">
-              {items.length}
+              {toggledCount}/{items.length} avbockade
             </span>
           )}
         </div>

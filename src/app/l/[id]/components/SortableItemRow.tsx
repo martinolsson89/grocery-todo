@@ -63,11 +63,11 @@ export function SortableItemRow({ item, onToggle, onEdit, onDelete }: SortableIt
             onEdit(item.id);
           }}
         >
-          Edit
+          Ändra
         </Button>
 
       <Button variant="ghost" size="sm" onClick={() => onDelete(item.id)}>
-        Delete
+        Radera
       </Button>
       </div>
 

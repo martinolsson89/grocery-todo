@@ -23,7 +23,7 @@ export function ListStats({ board }: { board: BoardState }) {
   }, [board]);
 
   return (
-    <div className="text-xs sm:text-sm text-muted-foreground">
+    <div className="text-xl sm:text-sm text-muted-foreground">
       <span>{total} varor</span>
       <span className="mx-2">•</span>
       <span>{checked} avprickade</span>
