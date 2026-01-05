@@ -21,12 +21,13 @@ export const DEFAULT_BOARD: BoardState = {
   columns: {
     frukt_gront: { id: "frukt_gront", title: "Frukt & Grönt", itemIds: [] },
     brod: { id: "brod", title: "Bröd", itemIds: [] },
+    fika: {id: "fika", title: "Fika", itemIds: []},
     chark: { id: "chark", title: "Chark", itemIds: [] },
     ost_palagg: { id: "ost_palagg", title: "Ost/skinka/pålägg", itemIds: [] },
     protein: { id: "protein", title: "Protein (Färskt)", itemIds: [] },
     mejeri: { id: "mejeri", title: "Mejeri", itemIds: [] },
     frysvaror: { id: "frysvaror", title: "Frysvaror", itemIds: [] },
-    asiatiskt: { id: "asiatiskt", title: "Asiatiskt", itemIds: [] },
+    asiatiskt: { id: "asiatiskt", title: "All världens mat", itemIds: [] },
     skafferi: { id: "skafferi", title: "Skafferi", itemIds: [] },
     snacks: { id: "snacks", title: "Snacks", itemIds: [] },
     dryck: { id: "dryck", title: "Dryck", itemIds: [] },
@@ -39,6 +40,7 @@ export const DEFAULT_BOARD: BoardState = {
   columnOrder: [
     "frukt_gront",
     "brod",
+    "fika",
     "chark",
     "ost_palagg",
     "protein",
