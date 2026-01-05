@@ -66,6 +66,10 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
   const [editId, setEditId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
 
+  const [duplicateOpen, setDuplicateOpen] = useState(false);
+  const [duplicateExistingId, setDuplicateExistingId] = useState<string | null>(null);
+  const [duplicateProposedText, setDuplicateProposedText] = useState("");
+
   const [viewMode, setViewMode] = useState<"sections" | "flat">("sections");
 
   const [addFormOpen, setAddFormOpen] = useState(true);
@@ -108,18 +112,24 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
     return visibleFlatItemIds.map((id) => board.items[id]).filter(Boolean);
   }, [visibleFlatItemIds, board.items]);
 
-  function addItem() {
+  function addItem(opts?: { allowDuplicate?: boolean }) {
+    const allowDuplicate = opts?.allowDuplicate ?? false;
+
     const text = newText.trim();
     if (!text) return;
 
-    const normalized = normalizeItemText(text);
-    const alreadyExists = Object.values(board.items).some(
-      (item) => normalizeItemText(item.text) === normalized
-    );
+    if (!allowDuplicate) {
+      const normalized = normalizeItemText(text);
+      const existing = Object.values(board.items).find(
+        (item) => normalizeItemText(item.text) === normalized
+      );
 
-    if (alreadyExists) {
-      window.alert("Den varan finns redan i listan.");
-      return;
+      if (existing) {
+        setDuplicateExistingId(existing.id);
+        setDuplicateProposedText(text);
+        setDuplicateOpen(true);
+        return;
+      }
     }
 
     const id = newItemId();
@@ -167,6 +177,24 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
     setEditId(id);
     setEditText(current.text);
     setEditOpen(true);
+  }
+
+  function openEditWithText(id: string, nextText: string) {
+    const current = board.items[id];
+    if (!current) return;
+
+    setEditId(id);
+    setEditText(nextText);
+    setEditOpen(true);
+  }
+
+  function handleDuplicateOpenChange(open: boolean) {
+    setDuplicateOpen(open);
+    if (!open) {
+      setDuplicateExistingId(null);
+      setDuplicateProposedText("");
+      setNewText("");
+    }
   }
 
   function handleEditOpenChange(open: boolean) {
@@ -292,6 +320,49 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
 
   return (
     <main className="min-h-screen p-3 sm:p-4 space-y-3 max-w-full">
+      {/* Duplicate Dialog */}
+      <Dialog open={duplicateOpen} onOpenChange={handleDuplicateOpenChange}>
+        <DialogContent
+          className="sm:max-w-106.25"
+          onOpenAutoFocus={(e) => {
+            // Avoid the opening Enter key from auto-clicking the first focused button
+            e.preventDefault();
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Den varan finns redan</DialogTitle>
+            <DialogDescription>
+              Vill du lägga till den ändå, ändra den befintliga varan, eller kasta den du försöker lägga till?
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                const id = duplicateExistingId;
+                const proposed = duplicateProposedText.trim();
+                handleDuplicateOpenChange(false);
+                if (!id || !proposed) return;
+                openEditWithText(id, proposed);
+              }}
+            >
+              Ändra befintlig
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                addItem({ allowDuplicate: true });
+                handleDuplicateOpenChange(false);
+              }}
+            >
+              Lägg till ändå
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Edit Dialog (rendered once at page level) */}
       <Dialog open={editOpen} onOpenChange={handleEditOpenChange}>
         <DialogContent className="sm:max-w-106.25">
@@ -438,7 +509,10 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
                   value={newText}
                   onChange={(e) => setNewText(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") addItem();
+                    if (e.key !== "Enter") return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    addItem();
                   }}
                   className="flex-1 h-11 touch-manipulation text-base"
                 />
@@ -466,7 +540,7 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button onClick={addItem} className="flex-1 sm:flex-none touch-manipulation h-11">
+                <Button onClick={() => addItem()} className="flex-1 sm:flex-none touch-manipulation h-11">
                   Lägg till
                 </Button>
               </div>
