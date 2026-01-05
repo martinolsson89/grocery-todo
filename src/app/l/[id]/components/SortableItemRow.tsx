@@ -17,7 +17,7 @@ export function SortableItemRow({ item, onToggle, onEdit, onDelete }: SortableIt
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.id });
 
-  const displayText = item.text.length > 20 ? `${item.text.slice(0, 20)}…` : item.text;
+  const mobileText = item.text.length > 20 ? `${item.text.slice(0, 20)}…` : item.text;
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -55,7 +55,8 @@ export function SortableItemRow({ item, onToggle, onEdit, onDelete }: SortableIt
         className={["flex-1", item.checked ? "line-through text-muted-foreground" : ""].join(" ")}
         title={item.text}
       >
-        {displayText}
+        <span className="sm:hidden">{mobileText}</span>
+        <span className="hidden sm:inline">{item.text}</span>
       </span>
 
       <div className="ml-auto flex items-center gap-1">
