@@ -72,6 +72,8 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
 
   const [checkFilter, setCheckFilter] = useState<"all" | "checked" | "unchecked">("all");
 
+  const normalizeItemText = (s: string) => s.trim().toLocaleLowerCase("sv-SE");
+
   const activeItem = activeItemId ? board.items[activeItemId] : null;
 
   async function cleanBoard() {
@@ -109,6 +111,16 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
   function addItem() {
     const text = newText.trim();
     if (!text) return;
+
+    const normalized = normalizeItemText(text);
+    const alreadyExists = Object.values(board.items).some(
+      (item) => normalizeItemText(item.text) === normalized
+    );
+
+    if (alreadyExists) {
+      window.alert("Den varan finns redan i listan.");
+      return;
+    }
 
     const id = newItemId();
     setBoard((prev) => {
