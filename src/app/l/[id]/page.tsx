@@ -10,38 +10,20 @@ import {
   MouseSensor,
   TouchSensor,
   closestCorners,
-  useDroppable,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { SortableContext, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
-
-import { Button } from "@/src/components/ui/button";
-import { Card, CardContent } from "@/src/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/src/components/ui/dropdown-menu";
-import { Input } from "@/src/components/ui/input";
-
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from "@/src/components/ui/dialog";
-
-import { Label } from "@/src/components/ui/label"
+import { arrayMove } from "@dnd-kit/sortable";
 
 import { useSupabaseBoard } from "./hooks/useSupabaseBoard";
 import { ListStats } from "./components/ListStats";
-import { SortableItemRow } from "./components/SortableItemRow";
-import { BoardState, type Item } from "./types";
+import { SectionColumn } from "./components/SectionColumn";
+import { DuplicateItemDialog } from "./components/DuplicateItemDialog";
+import { EditItemDialog } from "./components/EditItemDialog";
+import { FlatListCard } from "./components/FlatListCard";
+import { ListToolbar } from "./components/ListToolbar";
+import { AddItemFormCard } from "./components/AddItemFormCard";
+import { BoardState } from "./types";
 import { findContainer, newItemId } from "./utils";
 
 export default function ListPage({ params }: { params: Promise<{ id: string }> }) {
@@ -321,233 +303,63 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
   return (
     <main className="min-h-screen p-3 sm:p-4 space-y-3 max-w-full">
       {/* Duplicate Dialog */}
-      <Dialog open={duplicateOpen} onOpenChange={handleDuplicateOpenChange}>
-        <DialogContent
-          className="sm:max-w-106.25"
-          onOpenAutoFocus={(e) => {
-            // Avoid the opening Enter key from auto-clicking the first focused button
-            e.preventDefault();
-          }}
-        >
-          <DialogHeader>
-            <DialogTitle>Den varan finns redan</DialogTitle>
-            <DialogDescription>
-              Vill du lägga till den ändå, ändra den befintliga varan, eller kasta den du försöker lägga till?
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogFooter className="gap-2 sm:gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                const id = duplicateExistingId;
-                const proposed = duplicateProposedText.trim();
-                handleDuplicateOpenChange(false);
-                if (!id || !proposed) return;
-                openEditWithText(id, proposed);
-              }}
-            >
-              Ändra befintlig
-            </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                addItem({ allowDuplicate: true });
-                handleDuplicateOpenChange(false);
-              }}
-            >
-              Lägg till ändå
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DuplicateItemDialog
+        open={duplicateOpen}
+        onOpenChange={handleDuplicateOpenChange}
+        onEditExisting={() => {
+          const id = duplicateExistingId;
+          const proposed = duplicateProposedText.trim();
+          handleDuplicateOpenChange(false);
+          if (!id || !proposed) return;
+          openEditWithText(id, proposed);
+        }}
+        onAddDuplicate={() => {
+          addItem({ allowDuplicate: true });
+          handleDuplicateOpenChange(false);
+        }}
+      />
 
       {/* Edit Dialog (rendered once at page level) */}
-      <Dialog open={editOpen} onOpenChange={handleEditOpenChange}>
-        <DialogContent className="sm:max-w-106.25">
-          <form onSubmit={saveEdit}>
-            <DialogHeader>
-              <DialogTitle>Ändra vara</DialogTitle>
-              <DialogDescription>Ändra varans namn här.</DialogDescription>
-            </DialogHeader>
+      <EditItemDialog
+        open={editOpen}
+        onOpenChange={handleEditOpenChange}
+        text={editText}
+        onTextChange={setEditText}
+        onSubmit={saveEdit}
+      />
 
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-3">
-                <Label htmlFor="edit-text">Text</Label>
-                <Input
-                  id="edit-text"
-                  name="text"
-                  value={editText}
-                  onChange={(e) => setEditText(e.target.value)}
-                  autoFocus
-                />
-              </div>
-            </div>
-
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button type="button" variant="outline">
-                  Avbryt
-                </Button>
-              </DialogClose>
-              <Button type="submit">Spara ändring</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 pb-3">
-        {/* Header */}
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-            <div className="min-w-0">
-              <h1 className="text-lg sm:text-2xl font-semibold leading-tight wrap-break-word">
-                Inköpslista
-                <span className="text-muted-foreground"> ({listId})</span>
-              </h1>
-              <ListStats board={board} />
-            </div>
-
-            <div className="flex flex-wrap gap-2 justify-end">
-              <div className="flex gap-2">
-                <Button
-                  variant={viewMode === "sections" ? "secondary" : "outline"}
-                  size="sm"
-                  className="touch-manipulation"
-                  onClick={() => setViewMode("sections")}
-                >
-                  Sektioner
-                </Button>
-                <Button
-                  variant={viewMode === "flat" ? "secondary" : "outline"}
-                  size="sm"
-                  className="touch-manipulation"
-                  onClick={() => setViewMode("flat")}
-                >
-                  Lista
-                </Button>
-              </div>
-
-              <Button
-                variant="outline"
-                size="sm"
-                className="touch-manipulation"
-                aria-expanded={addFormOpen}
-                aria-controls="add-item-form"
-                onClick={() => setAddFormOpen((v) => !v)}
-              >
-                {addFormOpen ? "Dölj" : "Lägg till"}
-              </Button>
-
-              <div className="flex gap-2 shrink-0">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="touch-manipulation"
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(window.location.href);
-                      setCopied(true);
-                      setTimeout(() => setCopied(false), 2000);
-                    } catch {
-                      setCopied(false);
-                    }
-                  }}
-                >
-                  {copied ? "✓" : "📋"}
-                </Button>
-
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="touch-manipulation"
-                  onClick={cleanBoard}
-                >
-                  Rensa
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Filters */}
-          <div className="flex gap-2 flex-wrap">
-            <Button
-              variant={checkFilter === "all" ? "secondary" : "outline"}
-              size="sm"
-              className="touch-manipulation"
-              onClick={() => setCheckFilter("all")}
-            >
-              Alla
-            </Button>
-            <Button
-              variant={checkFilter === "unchecked" ? "secondary" : "outline"}
-              size="sm"
-              className="touch-manipulation"
-              onClick={() => setCheckFilter("unchecked")}
-            >
-              Ej avprickade
-            </Button>
-            <Button
-              variant={checkFilter === "checked" ? "secondary" : "outline"}
-              size="sm"
-              className="touch-manipulation"
-              onClick={() => setCheckFilter("checked")}
-            >
-              Avprickade
-            </Button>
-          </div>
-        </div>
-
-        {/* Add Item Form */}
-        {addFormOpen ? (
-          <Card id="add-item-form" className="mt-3">
-            <CardContent className="p-3 sm:p-4 space-y-2">
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Input
-                  placeholder="Lägg till vara..."
-                  value={newText}
-                  onChange={(e) => setNewText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key !== "Enter") return;
-                    e.preventDefault();
-                    e.stopPropagation();
-                    addItem();
-                  }}
-                  className="flex-1 h-11 touch-manipulation text-base"
-                />
-              </div>
-              <div className="flex gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="flex-1 sm:flex-none sm:min-w-40 justify-between touch-manipulation h-11"
-                    >
-                      <span className="truncate">{board.columns[targetColumn]?.title ?? "Övrigt"}</span>
-                      <span className="ml-2 shrink-0">▼</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-56 max-h-80 overflow-y-auto">
-                    {board.columnOrder.map((colId) => (
-                      <DropdownMenuItem
-                        key={colId}
-                        onClick={() => setTargetColumn(colId)}
-                        className="touch-manipulation py-3"
-                      >
-                        {board.columns[colId].title}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Button onClick={() => addItem()} className="flex-1 sm:flex-none touch-manipulation h-11">
-                  Lägg till
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : null }
-      </div>
+      <ListToolbar
+        listId={listId}
+        stats={<ListStats board={board} />}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        addFormOpen={addFormOpen}
+        onToggleAddForm={() => setAddFormOpen((v) => !v)}
+        copied={copied}
+        onCopyLink={async () => {
+          try {
+            await navigator.clipboard.writeText(window.location.href);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          } catch {
+            setCopied(false);
+          }
+        }}
+        onClear={cleanBoard}
+        checkFilter={checkFilter}
+        onCheckFilterChange={setCheckFilter}
+      >
+        <AddItemFormCard
+          open={addFormOpen}
+          newText={newText}
+          onNewTextChange={setNewText}
+          targetColumn={targetColumn}
+          onTargetColumnChange={setTargetColumn}
+          columnOrder={board.columnOrder}
+          columns={board.columns}
+          onAddItem={() => addItem()}
+        />
+      </ListToolbar>
 
       {/* Vertical Scrolling Sections */}
       <DndContext
@@ -589,39 +401,13 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
             </div>
           </div>
         ) : (
-          // Flat (continuous) list view
-          <Card className="pb-4">
-            <CardContent className="p-2 sm:p-3">
-              <div className="sticky top-0 bg-card/90 backdrop-blur-sm px-2 py-2 border-b rounded-md">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-medium text-sm">Alla varor</h3>
-                  <span className="text-xs text-muted-foreground">
-                    {visibleFlatItems.length} st
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-1 space-y-1.5">
-                <SortableContext items={visibleFlatItemIds} strategy={verticalListSortingStrategy}>
-                  {visibleFlatItems.map((item) => (
-                    <SortableItemRow
-                      key={item.id}
-                      item={item}
-                      onToggle={toggleItem}
-                      onEdit={openEdit}
-                      onDelete={deleteItem}
-                    />
-                  ))}
-                </SortableContext>
-
-                {visibleFlatItems.length === 0 && (
-                  <div className="rounded-md border border-dashed p-4 text-xs text-center text-muted-foreground">
-                    Inga varor
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <FlatListCard
+            itemIds={visibleFlatItemIds}
+            items={visibleFlatItems}
+            onToggle={toggleItem}
+            onEdit={openEdit}
+            onDelete={deleteItem}
+          />
         )}
 
         <DragOverlay dropAnimation={null} style={{ position: "fixed" }}>
@@ -633,74 +419,5 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
         </DragOverlay>
       </DndContext>
     </main>
-  );
-}
-
-// Section Column Component
-interface SectionColumnProps {
-  sectionId: string;
-  title: string;
-  itemIds: string[];
-  items: Item[];
-  hasItems: boolean;
-  onToggle: (id: string) => void;
-  onEdit: (id: string) => void;
-  onDelete: (id: string) => void;
-}
-
-function SectionColumn({
-  sectionId,
-  title,
-  itemIds,
-  items,
-  hasItems,
-  onToggle,
-  onEdit,
-  onDelete,
-}: SectionColumnProps) {
-  const { setNodeRef, isOver } = useDroppable({ id: sectionId });
-
-  const toggledCount = useMemo(() => items.reduce((acc, item) => acc + (item.checked ? 1 : 0), 0), [items]);
-
-  return (
-    <div
-      className={[
-        "w-full rounded-lg border bg-card",
-        isOver ? "ring-2 ring-primary" : "",
-      ].join(" ")}
-    >
-      {/* Section Header */}
-      <div className="sticky top-0 bg-muted/80 backdrop-blur-sm px-3 py-2 border-b rounded-t-lg">
-        <div className="flex items-center justify-between">
-          <h3 className="font-medium text-sm">{title}</h3>
-          {hasItems && (
-            <span className="text-xs text-muted-foreground bg-background px-2 py-0.5 rounded-full">
-              {toggledCount}/{items.length} avbockade
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Section Items */}
-      <div ref={setNodeRef} className="p-2 space-y-1.5 min-h-25">
-        <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
-          {items.map((item) => (
-            <SortableItemRow
-              key={item.id}
-              item={item}
-              onToggle={onToggle}
-              onEdit={onEdit}
-              onDelete={onDelete}
-            />
-          ))}
-        </SortableContext>
-
-        {!hasItems && (
-          <div className="rounded-md border border-dashed p-4 text-xs text-center text-muted-foreground">
-            Dra varor hit
-          </div>
-        )}
-      </div>
-    </div>
   );
 }
