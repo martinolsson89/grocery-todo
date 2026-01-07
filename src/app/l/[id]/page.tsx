@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   DndContext,
   DragEndEvent,
@@ -23,11 +24,13 @@ import { EditItemDialog } from "./components/EditItemDialog";
 import { FlatListCard } from "./components/FlatListCard";
 import { ListToolbar } from "./components/ListToolbar";
 import { AddItemFormCard } from "./components/AddItemFormCard";
-import { BoardState } from "./types";
+import { BoardState, coerceStoreKey } from "./types";
 import { findContainer, newItemId } from "./utils";
 
 export default function ListPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: listId } = use(params);
+  const searchParams = useSearchParams();
+  const store = useMemo(() => coerceStoreKey(searchParams.get("store")), [searchParams]);
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -38,7 +41,7 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
     })
   );
 
-  const { board, setBoard, isLoading, error, resetBoard } = useSupabaseBoard(listId);
+  const { board, setBoard, isLoading, error, resetBoard } = useSupabaseBoard(listId, store);
   const [newText, setNewText] = useState("");
   const [targetColumn, setTargetColumn] = useState("frukt_gront");
   const [copied, setCopied] = useState(false);
@@ -57,6 +60,11 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
   const [addFormOpen, setAddFormOpen] = useState(true);
 
   const [checkFilter, setCheckFilter] = useState<"all" | "checked" | "unchecked">("all");
+
+  const effectiveTargetColumn = useMemo(() => {
+    if (board.columns[targetColumn]) return targetColumn;
+    return board.columnOrder[0] ?? targetColumn;
+  }, [board.columns, board.columnOrder, targetColumn]);
 
   const normalizeItemText = (s: string) => s.trim().toLocaleLowerCase("sv-SE");
 
@@ -118,7 +126,13 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
     setBoard((prev) => {
       const next: BoardState = structuredClone(prev);
       next.items[id] = { id, text, checked: false };
-      next.columns[targetColumn].itemIds.unshift(id);
+
+      const colId = next.columns[effectiveTargetColumn]
+        ? effectiveTargetColumn
+        : next.columnOrder[0];
+      if (!colId) return prev;
+
+      next.columns[colId].itemIds.unshift(id);
       return next;
     });
 
@@ -353,7 +367,7 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
           open={addFormOpen}
           newText={newText}
           onNewTextChange={setNewText}
-          targetColumn={targetColumn}
+          targetColumn={effectiveTargetColumn}
           onTargetColumnChange={setTargetColumn}
           columnOrder={board.columnOrder}
           columns={board.columns}

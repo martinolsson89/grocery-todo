@@ -4,7 +4,20 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/src/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/src/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/src/components/ui/dropdown-menu";
 import { createClient } from "@/src/lib/supabase/client";
+
+type StoreKey = "willys" | "hemkop";
+
+const STORE_LABEL: Record<StoreKey, string> = {
+  willys: "Willys",
+  hemkop: "Hemköp",
+};
 
 function newListId() {
   // Use crypto for better randomness and longer ID
@@ -16,6 +29,7 @@ function newListId() {
 export default function HomePage() {
   const router = useRouter();
   const [cleanupMessage, setCleanupMessage] = useState<string | null>(null);
+  const [store, setStore] = useState<StoreKey>("willys");
 
   async function cleanupOldLists() {
     const supabase = createClient();
@@ -61,11 +75,24 @@ export default function HomePage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="justify-between min-w-40">
+                  <span>{STORE_LABEL[store]}</span>
+                  <span className="ml-2">▼</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuItem onClick={() => setStore("willys")}>Willys</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setStore("hemkop")}>Hemköp</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <Button
               onClick={() => {
                 const id = newListId();
-                router.push(`/l/${id}`);
+                router.push(`/l/${id}?store=${store}`);
               }}
             >
               Skapa en ny lista

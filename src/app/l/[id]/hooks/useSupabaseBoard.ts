@@ -1,14 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/src/lib/supabase/client";
-import { BoardState, DEFAULT_BOARD } from "../types";
+import {
+  BoardState,
+  DEFAULT_STORE,
+  getDefaultBoardForStore,
+  StoreKey,
+} from "../types";
 import type { ListColumn, ListItem } from "@/src/lib/supabase/types";
 
 /**
  * Hook to sync board state with Supabase.
  * Provides real-time updates and persists changes to the database.
  */
-export function useSupabaseBoard(listId: string) {
-  const [board, setBoardState] = useState<BoardState>(DEFAULT_BOARD);
+export function useSupabaseBoard(listId: string, store?: StoreKey) {
+  const storeKey = store ?? DEFAULT_STORE;
+  const [board, setBoardState] = useState<BoardState>(() => getDefaultBoardForStore(storeKey));
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +68,7 @@ export function useSupabaseBoard(listId: string) {
     // Check if list exists
     const { data: existingList, error: checkError } = await supabase
       .from("grocery_lists")
-      .select("id")
+      .select("id, store")
       .eq("id", listId)
       .single();
 
@@ -73,13 +79,33 @@ export function useSupabaseBoard(listId: string) {
       return false;
     }
 
+    const desiredBoard = getDefaultBoardForStore(
+      (existingList?.store as StoreKey | null | undefined) ?? storeKey
+    );
+
     if (!existingList) {
       // Create the list
+      const listInsertPayloadWithStore = { id: listId, store: storeKey };
       const { error: listError } = await supabase
         .from("grocery_lists")
-        .insert({ id: listId });
+        // store column is expected; if your DB isn't migrated yet, we retry without it
+        .insert(listInsertPayloadWithStore);
 
       if (listError) {
+        // Retry insert without store if column doesn't exist yet
+        if (listError.code === "PGRST204" || listError.code === "42703") {
+          const { error: retryError } = await supabase.from("grocery_lists").insert({ id: listId });
+          if (retryError) {
+            console.error(
+              "Error creating list (retry):",
+              retryError.message,
+              retryError.code,
+              retryError.details
+            );
+            setError(`Failed to create list: ${retryError.message}`);
+            return false;
+          }
+        } else {
         // Handle duplicate key - list was created by another request
         if (listError.code === "23505") {
           // List already exists, this is fine - proceed normally
@@ -88,13 +114,14 @@ export function useSupabaseBoard(listId: string) {
         console.error("Error creating list:", listError.message, listError.code, listError.details);
         setError(`Failed to create list: ${listError.message}`);
         return false;
+        }
       }
 
       // Create default columns
-      const columnsToInsert = DEFAULT_BOARD.columnOrder.map((colId, index) => ({
+      const columnsToInsert = desiredBoard.columnOrder.map((colId, index) => ({
         id: colId,
         list_id: listId,
-        title: DEFAULT_BOARD.columns[colId].title,
+        title: desiredBoard.columns[colId].title,
         sort_order: index,
       }));
 
@@ -111,10 +138,55 @@ export function useSupabaseBoard(listId: string) {
         setError(`Failed to create columns: ${columnsError.message}`);
         return false;
       }
+    } else {
+      // Ensure template columns exist (handles partial seeding and later template additions)
+      const { data: existingColumns, error: columnsQueryError } = await supabase
+        .from("list_columns")
+        .select("id, sort_order")
+        .eq("list_id", listId);
+
+      if (columnsQueryError) {
+        console.error(
+          "Error checking columns:",
+          columnsQueryError.message,
+          columnsQueryError.code,
+          columnsQueryError.details
+        );
+        // Don't fail initialization on this; fetchBoard will show errors if needed
+        return true;
+      }
+
+      const existingIds = new Set((existingColumns ?? []).map((c) => c.id));
+      const maxSortOrder = (existingColumns ?? []).reduce(
+        (max, c) => (typeof c.sort_order === "number" ? Math.max(max, c.sort_order) : max),
+        -1
+      );
+
+      const missingIds = desiredBoard.columnOrder.filter((colId) => !existingIds.has(colId));
+      if (missingIds.length > 0) {
+        const columnsToInsert = missingIds.map((colId, index) => ({
+          id: colId,
+          list_id: listId,
+          title: desiredBoard.columns[colId].title,
+          sort_order: maxSortOrder + 1 + index,
+        }));
+
+        const { error: columnsError } = await supabase.from("list_columns").insert(columnsToInsert);
+        if (columnsError && columnsError.code !== "23505") {
+          console.error(
+            "Error creating missing columns (existing list):",
+            columnsError.message,
+            columnsError.code,
+            columnsError.details
+          );
+          setError(`Failed to create columns: ${columnsError.message}`);
+          return false;
+        }
+      }
     }
 
     return true;
-  }, [listId, supabase]);
+  }, [listId, supabase, storeKey]);
 
   // Fetch board data from Supabase
   const fetchBoard = useCallback(async (showLoading = false) => {
@@ -297,12 +369,12 @@ export function useSupabaseBoard(listId: string) {
       // Delete all items
       await supabase.from("list_items").delete().eq("list_id", listId);
 
-      // Reset local state
-      setBoardState(DEFAULT_BOARD);
+      // Refresh state (columns remain)
+      await fetchBoard(false);
     } catch (err) {
       console.error("Error resetting board:", err);
     }
-  }, [listId, supabase]);
+  }, [listId, supabase, fetchBoard]);
 
   return { board, setBoard, isLoading, error, resetBoard };
 }
