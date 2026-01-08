@@ -1,5 +1,7 @@
 "use client";
 
+import { useMemo, useState } from "react";
+
 import { Button } from "@/src/components/ui/button";
 import {
   Dialog,
@@ -34,8 +36,34 @@ export function RecipeIngredientsDialog({
 }: RecipeIngredientsDialogProps) {
   const description = title ? `${title} · ${sourceUrl}` : sourceUrl;
 
+  const ingredientKeys = useMemo(
+    () => ingredients.map((ingredient, idx) => `${idx}-${ingredient}`),
+    [ingredients]
+  );
+
+  const [uncheckedByKey, setUncheckedByKey] = useState<Record<string, true>>({});
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      // Default all ingredients to checked each time dialog opens.
+      setUncheckedByKey({});
+    }
+    onOpenChange(nextOpen);
+  };
+
+  const checkedIngredients = useMemo(() => {
+    const selected: string[] = [];
+    for (let i = 0; i < ingredients.length; i++) {
+      const ingredient = ingredients[i];
+      const key = ingredientKeys[i];
+      const isUnchecked = uncheckedByKey[key] ?? false;
+      if (!isUnchecked) selected.push(ingredient);
+    }
+    return selected;
+  }, [ingredientKeys, ingredients, uncheckedByKey]);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-106.25">
         <DialogHeader>
           <DialogTitle>Ingredienser</DialogTitle>
@@ -59,18 +87,56 @@ export function RecipeIngredientsDialog({
             ingredients.length === 0 ? (
               <p className="text-sm text-muted-foreground">Inga ingredienser hittades.</p>
             ) : (
-              <ul className="list-disc pl-5 text-sm space-y-1">
-                {ingredients.map((ingredient, idx) => (
-                  <li key={`${idx}-${ingredient}`} className="wrap-break-words">
-                    {ingredient}
-                  </li>
-                ))}
+              <ul className="text-sm space-y-2">
+                {ingredients.map((ingredient, idx) => {
+                  const key = ingredientKeys[idx];
+                  const checked = !(uncheckedByKey[key] ?? false);
+
+                  return (
+                    <li key={key} className="wrap-break-words">
+                      <label className="flex items-start gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 h-5 w-5"
+                          checked={checked}
+                          onChange={(e) => {
+                            const nextChecked = e.target.checked;
+                            setUncheckedByKey((prev) => {
+                              if (nextChecked) {
+                                if (!prev[key]) return prev;
+                                const { [key]: removed, ...rest } = prev;
+                                void removed;
+                                return rest;
+                              }
+
+                              if (prev[key]) return prev;
+                              return { ...prev, [key]: true };
+                            });
+                          }}
+                        />
+                        <span>{ingredient}</span>
+                      </label>
+                    </li>
+                  );
+                })}
               </ul>
             )
           ) : null}
         </div>
 
         <DialogFooter>
+          {status === "success" ? (
+            <Button
+              type="button"
+              disabled={ingredients.length === 0 || checkedIngredients.length === 0}
+              onClick={() => {
+                // Frontend behavior only for now; wiring to grocery list comes next.
+                void checkedIngredients;
+              }}
+            >
+              Lägg till valda
+            </Button>
+          ) : null}
           <DialogClose asChild>
             <Button type="button" variant="outline">
               Stäng
