@@ -73,6 +73,35 @@ export type Database = {
           updated_at?: string;
         };
       };
+      recipes: {
+        Row: {
+          id: string;
+          list_id: string;
+          title: string;
+          url: string;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          list_id: string;
+          title: string;
+          url: string;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          list_id?: string;
+          title?: string;
+          url?: string;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
   };
 };
@@ -80,3 +109,4 @@ export type Database = {
 export type GroceryList = Database["public"]["Tables"]["grocery_lists"]["Row"];
 export type ListColumn = Database["public"]["Tables"]["list_columns"]["Row"];
 export type ListItem = Database["public"]["Tables"]["list_items"]["Row"];
+export type Recipe = Database["public"]["Tables"]["recipes"]["Row"];

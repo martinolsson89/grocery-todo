@@ -174,9 +174,9 @@ export function useSupabaseBoard(listId: string, store?: StoreKey) {
         return true;
       }
 
-      const existingIds = new Set((existingColumns ?? []).map((c) => c.id));
+      const existingIds = new Set((existingColumns ?? []).map((c: { id: string; sort_order: number | null }) => c.id));
       const maxSortOrder = (existingColumns ?? []).reduce(
-        (max, c) => (typeof c.sort_order === "number" ? Math.max(max, c.sort_order) : max),
+        (max: number, c: { id: string; sort_order: number | null }) => (typeof c.sort_order === "number" ? Math.max(max, c.sort_order) : max),
         -1
       );
 
@@ -204,7 +204,7 @@ export function useSupabaseBoard(listId: string, store?: StoreKey) {
     }
 
     return true;
-  }, [listId, supabase, storeKey]);
+  }, [listId, supabase, storeKey, store]);
 
   // Fetch board data from Supabase
   const fetchBoard = useCallback(async (showLoading = false) => {
