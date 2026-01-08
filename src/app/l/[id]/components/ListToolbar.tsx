@@ -2,6 +2,16 @@
 
 import Link from "next/link";
 import { Button } from "@/src/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/src/components/ui/dropdown-menu";
 
 interface ListToolbarProps {
   listId: string;
@@ -41,7 +51,7 @@ export function ListToolbar({
   return (
     <div className="sticky top-0 z-20 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 pb-3">
       <div className="flex flex-col gap-3">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+        <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <h1 className="text-lg sm:text-2xl font-semibold leading-tight wrap-break-word">
               Inköpslista
@@ -50,58 +60,103 @@ export function ListToolbar({
             {stats}
           </div>
 
-          <div className="flex flex-wrap gap-2 justify-end">
-            <Button asChild variant="outline" size="sm" className="touch-manipulation">
-              <Link href={`/l/${listId}/recipes`}>Recept</Link>
-            </Button>
-            <div className="flex gap-2">
-              <Button
-                variant={viewMode === "sections" ? "secondary" : "outline"}
-                size="sm"
-                className="touch-manipulation"
-                onClick={() => onViewModeChange("sections")}
-              >
-                Sektioner
-              </Button>
-              <Button
-                variant={viewMode === "flat" ? "secondary" : "outline"}
-                size="sm"
-                className="touch-manipulation"
-                onClick={() => onViewModeChange("flat")}
-              >
-                Lista
-              </Button>
+          <div className="flex justify-end shrink-0">
+            <div className="sm:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="touch-manipulation" aria-label="Meny">
+                    ☰
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem asChild>
+                    <Link href={`/l/${listId}/recipes`}>Recept</Link>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>Vy</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={viewMode}
+                    onValueChange={(mode) => onViewModeChange(mode as "sections" | "flat")}
+                  >
+                    <DropdownMenuRadioItem value="sections">Sektioner</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="flat">Lista</DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+
+                  <DropdownMenuSeparator />
+
+                  <DropdownMenuItem
+                    aria-expanded={addFormOpen}
+                    aria-controls="add-item-form"
+                    onSelect={onToggleAddForm}
+                  >
+                    {addFormOpen ? "Dölj" : "Lägg till"}
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem onSelect={onCopyLink}>
+                    {copied ? "Kopierad" : "Kopiera"}
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem variant="destructive" onSelect={onClear}>
+                    Rensa
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
-            <Button
-              variant="outline"
-              size="sm"
-              className="touch-manipulation"
-              aria-expanded={addFormOpen}
-              aria-controls="add-item-form"
-              onClick={onToggleAddForm}
-            >
-              {addFormOpen ? "Dölj" : "Lägg till"}
-            </Button>
+            <div className="hidden sm:flex sm:flex-wrap sm:gap-2 sm:justify-end">
+              <Button asChild variant="outline" size="sm" className="touch-manipulation">
+                <Link href={`/l/${listId}/recipes`}>Recept</Link>
+              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant={viewMode === "sections" ? "secondary" : "outline"}
+                  size="sm"
+                  className="touch-manipulation"
+                  onClick={() => onViewModeChange("sections")}
+                >
+                  Sektioner
+                </Button>
+                <Button
+                  variant={viewMode === "flat" ? "secondary" : "outline"}
+                  size="sm"
+                  className="touch-manipulation"
+                  onClick={() => onViewModeChange("flat")}
+                >
+                  Lista
+                </Button>
+              </div>
 
-            <div className="flex gap-2 shrink-0">
               <Button
                 variant="outline"
                 size="sm"
                 className="touch-manipulation"
-                onClick={onCopyLink}
+                aria-expanded={addFormOpen}
+                aria-controls="add-item-form"
+                onClick={onToggleAddForm}
               >
-                {copied ? "✓" : "📋"}
+                {addFormOpen ? "Dölj" : "Lägg till"}
               </Button>
 
-              <Button
-                variant="destructive"
-                size="sm"
-                className="touch-manipulation"
-                onClick={onClear}
-              >
-                Rensa
-              </Button>
+              <div className="flex gap-2 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="touch-manipulation"
+                  onClick={onCopyLink}
+                >
+                  {copied ? "✓" : "📋"}
+                </Button>
+
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="touch-manipulation"
+                  onClick={onClear}
+                >
+                  Rensa
+                </Button>
+              </div>
             </div>
           </div>
         </div>
