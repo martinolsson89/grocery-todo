@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/src/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/src/components/ui/card";
 import {
@@ -30,19 +30,46 @@ export default function HomePage() {
   const router = useRouter();
   const [cleanupMessage, setCleanupMessage] = useState<string | null>(null);
   const [store, setStore] = useState<StoreKey>("willys");
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    supabase.auth.getUser().then(({ data }) => {
+      setUserEmail(data.user?.email ?? null);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserEmail(session?.user?.email ?? null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   async function cleanupOldLists() {
-    const supabase = createClient();
-    const { data, error } = await supabase.rpc("delete_old_lists");
-    
-    if (error) {
+    setCleanupMessage(null);
+    const res = await fetch("/api/cleanup-old-lists", { method: "POST" });
+
+    if (!res.ok) {
       setCleanupMessage("Något gick fel med att ta bort gamla listor.");
-      console.error(error);
-    } else {
-      setCleanupMessage(`Tog bort ${data} gamla listor`);
+      setTimeout(() => setCleanupMessage(null), 3000);
+      return;
     }
-    
+
+    const body = (await res.json()) as { deletedCount?: number };
+    setCleanupMessage(`Tog bort ${body.deletedCount ?? 0} gamla listor`);
     setTimeout(() => setCleanupMessage(null), 3000);
+  }
+
+  async function logout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    setCleanupMessage(null);
+    router.refresh();
   }
 
   // async function deleteAllLists() {
@@ -106,6 +133,16 @@ export default function HomePage() {
             >
               Öppna Demolista
             </Button>
+
+            {userEmail ? (
+              <Button variant="ghost" onClick={logout}>
+                Logga ut
+              </Button>
+            ) : (
+              <Button variant="ghost" onClick={() => router.push("/login")}>
+                Logga in
+              </Button>
+            )}
           </div>
 
           <div className="pt-4 border-t space-y-3">
@@ -113,9 +150,11 @@ export default function HomePage() {
               <span className="text-sm text-muted-foreground">
                 {cleanupMessage || "Listor som är äldre än 30 dagar kan tas bort"}
               </span>
-              <Button variant="ghost" size="sm" onClick={cleanupOldLists}>
-                Rensa gamla listor
-              </Button>
+              {userEmail ? (
+                <Button variant="ghost" size="sm" onClick={cleanupOldLists}>
+                  Rensa gamla listor
+                </Button>
+              ) : null}
             </div>
             
             {/* <div className="flex items-center justify-between">

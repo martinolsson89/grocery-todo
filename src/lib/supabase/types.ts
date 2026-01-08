@@ -1,3 +1,11 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
+
 export type Database = {
   public: {
     Tables: {
@@ -6,17 +14,21 @@ export type Database = {
           id: string;
           created_at: string;
           updated_at: string;
+          store: string | null;
         };
         Insert: {
           id: string;
           created_at?: string;
           updated_at?: string;
+          store?: string | null;
         };
         Update: {
           id?: string;
           created_at?: string;
           updated_at?: string;
+          store?: string | null;
         };
+        Relationships: [];
       };
       list_columns: {
         Row: {
@@ -40,6 +52,7 @@ export type Database = {
           sort_order?: number;
           created_at?: string;
         };
+        Relationships: [];
       };
       list_items: {
         Row: {
@@ -72,6 +85,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [];
       };
       recipes: {
         Row: {
@@ -101,8 +115,18 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [];
       };
     };
+    Views: Record<string, never>;
+    Functions: {
+      delete_old_lists: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
+    };
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 };
 
