@@ -6,6 +6,23 @@ export type RecipeItem = {
   id: string;
   title: string;
   url: string;
+  total_time: number | null;
+  ingredients: string[] | null;
+  instructions: string | null;
+  yields: string | null;
+  image_url: string | null;
+  host: string | null;
+};
+
+export type RecipeUpdate = {
+  title?: string | null;
+  url?: string;
+  total_time?: number | null;
+  ingredients?: string[] | null;
+  instructions?: string | null;
+  yields?: string | null;
+  image_url?: string | null;
+  host?: string | null;
 };
 
 /**
@@ -25,8 +42,14 @@ export function useSupabaseRecipes(listId: string) {
       .sort((a, b) => a.sort_order - b.sort_order)
       .map((r) => ({
         id: r.id,
-        title: r.title,
+        title: r.title ?? "",
         url: r.url,
+        total_time: r.total_time,
+        ingredients: r.ingredients,
+        instructions: r.instructions,
+        yields: r.yields,
+        image_url: r.image_url,
+        host: r.host,
       }));
   }, []);
 
@@ -89,11 +112,23 @@ export function useSupabaseRecipes(listId: string) {
 
   // Add a new recipe
   const addRecipe = useCallback(
-    async (title: string, url: string) => {
+    async (title: string, url: string, details?: RecipeUpdate): Promise<string> => {
       const id = Math.random().toString(36).slice(2, 10);
 
+      const optimistic: RecipeItem = {
+        id,
+        title,
+        url,
+        total_time: details?.total_time ?? null,
+        ingredients: details?.ingredients ?? null,
+        instructions: details?.instructions ?? null,
+        yields: details?.yields ?? null,
+        image_url: details?.image_url ?? null,
+        host: details?.host ?? null,
+      };
+
       // Optimistic update - add to beginning
-      setRecipesState((prev) => [{ id, title, url }, ...prev]);
+      setRecipesState((prev) => [optimistic, ...prev]);
 
       try {
         // Get current max sort_order and insert at 0, shifting others
@@ -120,12 +155,19 @@ export function useSupabaseRecipes(listId: string) {
         }
 
         // Insert new recipe at sort_order 0
+        const normalizedTitle = title.trim();
         const { error: insertError } = await supabase.from("recipes").insert({
           id,
           list_id: listId,
-          title,
+          title: normalizedTitle ? normalizedTitle : null,
           url,
           sort_order: 0,
+          total_time: details?.total_time,
+          ingredients: details?.ingredients,
+          instructions: details?.instructions,
+          yields: details?.yields,
+          image_url: details?.image_url,
+          host: details?.host,
         });
 
         if (insertError) {
@@ -134,6 +176,8 @@ export function useSupabaseRecipes(listId: string) {
           fetchRecipes(false);
           throw new Error(insertError.message);
         }
+
+        return id;
       } catch (err) {
         console.error("Error adding recipe:", err);
         fetchRecipes(false);
@@ -169,10 +213,17 @@ export function useSupabaseRecipes(listId: string) {
 
   // Update a recipe
   const updateRecipe = useCallback(
-    async (id: string, updates: { title?: string; url?: string }) => {
+    async (id: string, updates: RecipeUpdate) => {
+      const { title, ...rest } = updates;
+
+      const optimisticUpdates: Partial<RecipeItem> = {
+        ...rest,
+        ...(title !== undefined ? { title: title ?? "" } : {}),
+      };
+
       // Optimistic update
       setRecipesState((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, ...updates } : r))
+        prev.map((r) => (r.id === id ? { ...r, ...optimisticUpdates } : r))
       );
 
       try {
