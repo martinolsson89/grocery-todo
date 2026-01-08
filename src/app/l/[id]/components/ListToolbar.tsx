@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "@/src/components/ui/button";
 
 interface ListToolbarProps {
@@ -50,6 +51,9 @@ export function ListToolbar({
           </div>
 
           <div className="flex flex-wrap gap-2 justify-end">
+            <Button asChild variant="outline" size="sm" className="touch-manipulation">
+              <Link href={`/l/${listId}/recipes`}>Recept</Link>
+            </Button>
             <div className="flex gap-2">
               <Button
                 variant={viewMode === "sections" ? "secondary" : "outline"}

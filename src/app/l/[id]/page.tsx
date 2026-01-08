@@ -358,10 +358,10 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
           } catch {
             setCopied(false);
           }
-        }}
+        } }
         onClear={cleanBoard}
         checkFilter={checkFilter}
-        onCheckFilterChange={setCheckFilter}
+        onCheckFilterChange={setCheckFilter} 
       >
         <AddItemFormCard
           open={addFormOpen}
