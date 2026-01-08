@@ -62,6 +62,9 @@ export function ListToolbar({
 
           <div className="flex justify-end shrink-0">
             <div className="sm:hidden">
+              <Button asChild variant="outline" size="sm" className="touch-manipulation mr-1">
+                <Link href={`/`}>Tillbaka</Link>
+              </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm" className="touch-manipulation" aria-label="Meny">
@@ -105,6 +108,9 @@ export function ListToolbar({
             </div>
 
             <div className="hidden sm:flex sm:flex-wrap sm:gap-2 sm:justify-end">
+              <Button asChild variant="outline" size="sm" className="touch-manipulation">
+                <Link href={`/`}>Tillbaka</Link>
+              </Button>
               <Button asChild variant="outline" size="sm" className="touch-manipulation">
                 <Link href={`/l/${listId}/recipes`}>Recept</Link>
               </Button>
