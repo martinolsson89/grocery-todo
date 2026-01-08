@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   DndContext,
@@ -32,6 +32,16 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
   const searchParams = useSearchParams();
   const store = useMemo(() => coerceStoreKey(searchParams.get("store")), [searchParams]);
 
+  const addFormStorageKey = useMemo(
+    () => `grocery-todo:list:${listId}:add-form-open`,
+    [listId]
+  );
+
+  const viewModeStorageKey = useMemo(
+    () => `grocery-todo:list:${listId}:view-mode`,
+    [listId]
+  );
+
   const sensors = useSensors(
     useSensor(MouseSensor, {
       activationConstraint: { distance: 6 },
@@ -55,9 +65,29 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
   const [duplicateExistingId, setDuplicateExistingId] = useState<string | null>(null);
   const [duplicateProposedText, setDuplicateProposedText] = useState("");
 
-  const [viewMode, setViewMode] = useState<"sections" | "flat">("sections");
+  const [viewMode, setViewMode] = useState<"sections" | "flat">(() => {
+    if (typeof window === "undefined") return "sections";
+    const raw = window.localStorage.getItem(viewModeStorageKey);
+    return raw === "flat" || raw === "sections" ? raw : "sections";
+  });
 
-  const [addFormOpen, setAddFormOpen] = useState(true);
+
+  const [addFormOpen, setAddFormOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const raw = window.localStorage.getItem(addFormStorageKey);
+    if (raw === null) return true;
+    return raw === "1";
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(addFormStorageKey, addFormOpen ? "1" : "0");
+  }, [addFormStorageKey, addFormOpen]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(viewModeStorageKey, viewMode);
+  }, [viewModeStorageKey, viewMode]);
 
   const [checkFilter, setCheckFilter] = useState<"all" | "checked" | "unchecked">("all");
 
