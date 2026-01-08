@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/src/lib/supabase/client";
 import {
   BoardState,
@@ -19,7 +19,7 @@ export function useSupabaseBoard(listId: string, store?: StoreKey) {
   const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   // Convert database rows to BoardState
   const dbToBoardState = useCallback(
@@ -77,6 +77,24 @@ export function useSupabaseBoard(listId: string, store?: StoreKey) {
       console.error("Error checking list:", checkError.message, checkError.code, checkError.details);
       setError(`Failed to check list: ${checkError.message}`);
       return false;
+    }
+
+    // If the caller explicitly provided a store, keep the DB in sync.
+    if (existingList && store && existingList.store !== storeKey) {
+      const { error: updateStoreError } = await supabase
+        .from("grocery_lists")
+        .update({ store: storeKey })
+        .eq("id", listId);
+
+      if (updateStoreError) {
+        console.error(
+          "Error updating list store:",
+          updateStoreError.message,
+          updateStoreError.code,
+          updateStoreError.details
+        );
+        // Non-fatal: fall through and continue loading columns/items.
+      }
     }
 
     const desiredBoard = getDefaultBoardForStore(
