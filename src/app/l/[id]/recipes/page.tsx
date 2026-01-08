@@ -7,6 +7,8 @@ import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { Label } from "@/src/components/ui/label";
 import { useSupabaseRecipes } from "../hooks/useSupabaseRecipes";
+import { PencilIcon, Trash2Icon } from "lucide-react";
+import { EditRecipeDialog } from "./EditRecipeDialog";
 
 function coerceHttpsUrl(raw: string) {
   const trimmed = raw.trim();
@@ -21,7 +23,51 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
   const [url, setUrl] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
-  const { recipes, isLoading, error, addRecipe, deleteRecipe } = useSupabaseRecipes(listId);
+  const { recipes, isLoading, error, addRecipe, updateRecipe, deleteRecipe } = useSupabaseRecipes(listId);
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editUrl, setEditUrl] = useState("");
+
+  function openEditDialog(recipe: { id: string; title: string; url: string }) {
+    setEditId(recipe.id);
+    setEditTitle(recipe.title);
+    setEditUrl(recipe.url);
+    setEditOpen(true);
+  }
+
+  async function handleSaveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editId) return;
+
+    const nextTitle = editTitle.trim();
+    const nextUrl = coerceHttpsUrl(editUrl);
+
+    if (!nextTitle || !nextUrl) {
+      setFormError("Titel och URL krävs.");
+      return;
+    }
+
+    try {
+      await updateRecipe(editId, { title: nextTitle, url: nextUrl });
+      setEditOpen(false);
+      setEditId(null);
+      setEditTitle("");
+      setEditUrl("");
+    } catch {
+      setFormError("Kunde inte uppdatera receptet.");
+    }
+  }
+
+  function handleEditOpenChange(open: boolean) {
+    setEditOpen(open);
+    if (!open) {
+      setEditId(null);
+      setEditTitle("");
+      setEditUrl("");
+    }
+  }
 
   async function handleAddRecipe(e: React.FormEvent) {
     e.preventDefault();
@@ -76,6 +122,16 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
     <main className="min-h-screen p-3 sm:p-4 space-y-3 max-w-full">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
+          {/* Edit Dialog (rendered once at page level) */}
+                <EditRecipeDialog
+                  open={editOpen}
+                  onOpenChange={handleEditOpenChange}
+                  title={editTitle}
+                  onTitleChange={setEditTitle}
+                  url={editUrl}
+                  onUrlChange={setEditUrl}
+                  onSubmit={handleSaveEdit}
+                />
           <h1 className="text-lg sm:text-2xl font-semibold leading-tight wrap-break-word">
             Recept
           </h1>
@@ -134,11 +190,17 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
               <div className="flex gap-2 self-end sm:self-auto">
                 <Button
                   variant="ghost"
-                  size="sm"
-                  onClick={() => deleteRecipe(r.id)}
-                  className="text-destructive hover:text-destructive"
+                  size="icon-sm"
+                  onClick={() => openEditDialog(r)}
                 >
-                  Ta bort
+                  <PencilIcon />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => deleteRecipe(r.id)}
+                >
+                  <Trash2Icon />
                 </Button>
                 <Button asChild variant="outline" size="sm" className="shrink-0">
                   <a href={r.url} target="_blank" rel="noreferrer noopener">
