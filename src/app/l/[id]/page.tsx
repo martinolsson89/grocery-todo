@@ -374,6 +374,7 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
 
       <ListToolbar
         listId={listId}
+        store={store}
         stats={<ListStats board={board} />}
         viewMode={viewMode}
         onViewModeChange={setViewMode}

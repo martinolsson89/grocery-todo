@@ -1,14 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { use, useState } from "react";
+import { use, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { Label } from "@/src/components/ui/label";
 import { useSupabaseRecipes } from "../hooks/useSupabaseRecipes";
+import { useSupabaseBoard } from "../hooks/useSupabaseBoard";
 import { PencilIcon, Trash2Icon } from "lucide-react";
 import { EditRecipeDialog } from "./EditRecipeDialog";
+import { RecipeIngredientsDialog } from "./RecipeIngredientsDialog";
+import { coerceStoreKey, type BoardState } from "../types";
+import { suggestColumnForIngredient } from "../ingredientCategorizer";
+import { newItemId } from "../utils";
 
 function coerceHttpsUrl(raw: string) {
   const trimmed = raw.trim();
@@ -17,18 +24,144 @@ function coerceHttpsUrl(raw: string) {
   return trimmed;
 }
 
+type ScrapeState =
+  | {
+      status: "idle";
+      ingredients: string[];
+      title: string | null;
+      sourceUrl: string;
+      error: null;
+      instructions: string | null;
+      yields: string | null;
+      total_time: number | null;
+      image_url: string | null;
+      host: string | null;
+    }
+  | {
+      status: "loading";
+      ingredients: string[];
+      title: string | null;
+      sourceUrl: string;
+      error: null;
+      instructions: string | null;
+      yields: string | null;
+      total_time: number | null;
+      image_url: string | null;
+      host: string | null;
+    }
+  | {
+      status: "success";
+      ingredients: string[];
+      title: string | null;
+      sourceUrl: string;
+      error: null;
+      instructions: string | null;
+      yields: string | null;
+      total_time: number | null;
+      image_url: string | null;
+      host: string | null;
+    }
+  | {
+      status: "error";
+      ingredients: string[];
+      title: string | null;
+      sourceUrl: string;
+      error: string;
+      instructions: null;
+      yields: null;
+      total_time: null;
+      image_url: null;
+      host: null;
+    };
+
+function extractIngredients(payload: unknown): string[] {
+  if (!payload || typeof payload !== "object") return [];
+  if (!("ingredients" in payload)) return [];
+  const ingredients = (payload as { ingredients?: unknown }).ingredients;
+  if (!Array.isArray(ingredients)) return [];
+
+  const strings = ingredients
+    .map((x) => (typeof x === "string" ? x.trim() : ""))
+    .filter(Boolean);
+
+  return strings;
+}
+
+function extractTitle(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const title = (payload as { title?: unknown }).title;
+  if (typeof title !== "string") return null;
+  const trimmed = title.trim();
+  return trimmed ? trimmed : null;
+}
+
+function extractString(payload: unknown, key: string): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const value = (payload as Record<string, unknown>)[key];
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function extractNonNegativeInt(payload: unknown, key: string): number | null {
+  if (!payload || typeof payload !== "object") return null;
+  const value = (payload as Record<string, unknown>)[key];
+
+  const num =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : Number.NaN;
+
+  if (!Number.isFinite(num)) return null;
+  const int = Math.trunc(num);
+  if (int < 0) return null;
+  return int;
+}
+
 export default function RecipesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: listId } = use(params);
+  const searchParams = useSearchParams();
+  const store = useMemo(() => coerceStoreKey(searchParams.get("store")), [searchParams]);
+
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
-  const { recipes, isLoading, error, addRecipe, updateRecipe, deleteRecipe } = useSupabaseRecipes(listId);
+  const {
+    recipes,
+    isLoading: recipesLoading,
+    error: recipesError,
+    addRecipe,
+    updateRecipe,
+    deleteRecipe,
+  } = useSupabaseRecipes(listId);
+
+  const {
+    setBoard,
+    isLoading: boardLoading,
+    error: boardError,
+  } = useSupabaseBoard(listId, store);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editUrl, setEditUrl] = useState("");
+
+  const [ingredientsOpen, setIngredientsOpen] = useState(false);
+  const [scrapeState, setScrapeState] = useState<ScrapeState>({
+    status: "idle",
+    ingredients: [],
+    title: null,
+    sourceUrl: "",
+    error: null,
+    instructions: null,
+    yields: null,
+    total_time: null,
+    image_url: null,
+    host: null,
+  });
 
   function openEditDialog(recipe: { id: string; title: string; url: string }) {
     setEditId(recipe.id);
@@ -69,17 +202,57 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
     }
   }
 
+  function handleIngredientsOpenChange(open: boolean) {
+    setIngredientsOpen(open);
+    if (!open) {
+      setScrapeState({
+        status: "idle",
+        ingredients: [],
+        title: null,
+        sourceUrl: "",
+        error: null,
+        instructions: null,
+        yields: null,
+        total_time: null,
+        image_url: null,
+        host: null,
+      });
+    }
+  }
+
+  async function scrapeRecipe(nextUrl: string) {
+    const res = await fetch("/api/recipe-scrape", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: nextUrl }),
+    });
+
+    const payload = await res.json().catch(() => null);
+    if (!res.ok) {
+      const message =
+        payload && typeof payload === "object" && payload !== null && "error" in payload
+          ? String((payload as { error?: unknown }).error ?? "")
+          : "Kunde inte hämta ingredienser.";
+      throw new Error(message || "Kunde inte hämta ingredienser.");
+    }
+
+    return {
+      title: extractTitle(payload),
+      ingredients: extractIngredients(payload),
+      instructions: extractString(payload, "instructions"),
+      yields: extractString(payload, "yields"),
+      total_time: extractNonNegativeInt(payload, "total_time"),
+      image_url: extractString(payload, "image_url") ?? extractString(payload, "image"),
+      host: extractString(payload, "host"),
+    };
+  }
+
   async function handleAddRecipe(e: React.FormEvent) {
     e.preventDefault();
     setFormError(null);
 
     const nextTitle = title.trim();
     const nextUrl = coerceHttpsUrl(url);
-
-    if (!nextTitle) {
-      setFormError("Ange en recepttitel.");
-      return;
-    }
 
     if (!nextUrl) {
       setFormError("Ange en URL till receptet.");
@@ -93,16 +266,79 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
       return;
     }
 
+    const titleWasEmpty = nextTitle.length === 0;
+
+    setIngredientsOpen(true);
+    setScrapeState({
+      status: "loading",
+      ingredients: [],
+      title: null,
+      sourceUrl: nextUrl,
+      error: null,
+      instructions: null,
+      yields: null,
+      total_time: null,
+      image_url: null,
+      host: null,
+    });
+
+    const scrapePromise = scrapeRecipe(nextUrl)
+      .then((result) => {
+        setScrapeState({
+          status: "success",
+          ingredients: result.ingredients,
+          title: result.title,
+          sourceUrl: nextUrl,
+          error: null,
+          instructions: result.instructions,
+          yields: result.yields,
+          total_time: result.total_time,
+          image_url: result.image_url,
+          host: result.host,
+        });
+        return result;
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : "Kunde inte hämta ingredienser.";
+        setScrapeState({
+          status: "error",
+          ingredients: [],
+          title: null,
+          sourceUrl: nextUrl,
+          error: message,
+          instructions: null,
+          yields: null,
+          total_time: null,
+          image_url: null,
+          host: null,
+        });
+        return null;
+      });
+
     try {
-      await addRecipe(nextTitle, nextUrl);
+      const createdId = await addRecipe(nextTitle, nextUrl);
       setTitle("");
       setUrl("");
+
+      const scrapeResult = await scrapePromise;
+      if (scrapeResult) {
+        await updateRecipe(createdId, {
+          ...(titleWasEmpty && scrapeResult.title ? { title: scrapeResult.title } : {}),
+          ingredients: scrapeResult.ingredients,
+          instructions: scrapeResult.instructions,
+          yields: scrapeResult.yields,
+          total_time: scrapeResult.total_time,
+          image_url: scrapeResult.image_url,
+          host: scrapeResult.host,
+        });
+      }
     } catch {
       setFormError("Kunde inte lägga till receptet.");
+      setIngredientsOpen(false);
     }
   }
 
-  if (isLoading) {
+  if (recipesLoading) {
     return (
       <main className="min-h-screen p-3 sm:p-4 flex items-center justify-center">
         <p className="text-muted-foreground">Laddar recept…</p>
@@ -110,12 +346,61 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
     );
   }
 
-  if (error) {
+  if (recipesError) {
     return (
       <main className="min-h-screen p-3 sm:p-4 flex items-center justify-center">
-        <p className="text-destructive">{error}</p>
+        <p className="text-destructive">{recipesError}</p>
       </main>
     );
+  }
+
+  const normalizeItemText = (s: string) => s.trim().toLocaleLowerCase("sv-SE");
+
+  async function handleAddSelectedIngredients(lines: string[]) {
+    if (boardLoading || boardError) return;
+    if (!lines || lines.length === 0) return;
+
+    let addedCount = 0;
+
+    await setBoard((prev) => {
+      const next: BoardState = structuredClone(prev);
+
+      const existingNormalized = new Set(
+        Object.values(next.items).map((item) => normalizeItemText(item.text))
+      );
+
+      for (const rawLine of lines) {
+        const { columnId, normalized } = suggestColumnForIngredient(rawLine, store, next);
+        const text = normalized.trim();
+        if (!text) continue;
+
+        const key = normalizeItemText(text);
+        if (existingNormalized.has(key)) continue;
+
+        const id = newItemId();
+        next.items[id] = { id, text, checked: false };
+
+        const targetColumnId = next.columns[columnId]
+          ? columnId
+          : next.columnOrder[0] ?? columnId;
+        if (!next.columns[targetColumnId]) continue;
+
+        next.columns[targetColumnId].itemIds.unshift(id);
+        existingNormalized.add(key);
+        addedCount++;
+      }
+
+      return next;
+    });
+
+    if (addedCount === 0) {
+      toast.message("Inga nya ingredienser att lägga till.");
+      return;
+    }
+
+    const plural = addedCount === 1 ? "ingrediens" : "ingredienser";
+    const verb = addedCount === 1 ? "tillagd" : "tillagda";
+    toast.success(`${addedCount} ${plural} ${verb}.`);
   }
 
   return (
@@ -132,13 +417,23 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
                   onUrlChange={setEditUrl}
                   onSubmit={handleSaveEdit}
                 />
+          <RecipeIngredientsDialog
+            open={ingredientsOpen}
+            onOpenChange={handleIngredientsOpenChange}
+            status={scrapeState.status === "idle" ? "loading" : scrapeState.status}
+            ingredients={scrapeState.ingredients}
+            error={scrapeState.status === "error" ? scrapeState.error : null}
+            sourceUrl={scrapeState.sourceUrl}
+            title={scrapeState.title}
+            onAddSelected={!boardLoading && !boardError ? handleAddSelectedIngredients : undefined}
+          />
           <h1 className="text-lg sm:text-2xl font-semibold leading-tight wrap-break-word">
             Recept
           </h1>
           <p className="text-sm text-muted-foreground">Lägg till och öppna recept för listan.</p>
         </div>
         <Button asChild variant="outline" size="sm" className="touch-manipulation">
-          <Link href={`/l/${listId}`}>Tillbaka</Link>
+          <Link href={`/l/${listId}?store=${store}`}>Tillbaka</Link>
         </Button>
       </div>
 
@@ -150,7 +445,7 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
             name="recipeTitle"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            autoFocus
+            placeholder="Valfritt"
           />
         </div>
 
@@ -162,6 +457,7 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://..."
+            autoFocus
           />
         </div>
 
@@ -183,6 +479,9 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
             >
               <div className="min-w-0 flex-1 overflow-hidden">
                 <div className="font-medium wrap-break-words sm:truncate">{r.title}</div>
+                {r.total_time !== null ? (
+                  <div className="text-xs text-muted-foreground">Tid: {r.total_time} min</div>
+                ) : null}
                 <div className="hidden text-xs text-muted-foreground sm:block sm:wrap-break-words sm:whitespace-normal">
                   {r.url}
                 </div>
@@ -201,6 +500,9 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
                   onClick={() => deleteRecipe(r.id)}
                 >
                   <Trash2Icon />
+                </Button>
+                <Button asChild variant="outline" size="sm" className="shrink-0">
+                  <Link href={`/l/${listId}/recipes/${r.id}?store=${store}`}>Mer info</Link>
                 </Button>
                 <Button asChild variant="outline" size="sm" className="shrink-0">
                   <a href={r.url} target="_blank" rel="noreferrer noopener">

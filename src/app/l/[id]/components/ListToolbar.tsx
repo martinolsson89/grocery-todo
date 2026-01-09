@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/src/components/ui/button";
+import { StoreKey } from "../types";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +16,7 @@ import {
 
 interface ListToolbarProps {
   listId: string;
+  store: StoreKey;
   stats: React.ReactNode;
 
   viewMode: "sections" | "flat";
@@ -36,6 +38,7 @@ interface ListToolbarProps {
 
 export function ListToolbar({
   listId,
+  store,
   stats,
   viewMode,
   onViewModeChange,
@@ -48,6 +51,8 @@ export function ListToolbar({
   onCheckFilterChange,
   children,
 }: ListToolbarProps) {
+  const recipesHref = `/l/${listId}/recipes?store=${store}`;
+
   return (
     <div className="sticky top-0 z-20 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 pb-3">
       <div className="flex flex-col gap-3">
@@ -73,7 +78,7 @@ export function ListToolbar({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem asChild>
-                    <Link href={`/l/${listId}/recipes`}>Recept</Link>
+                    <Link href={recipesHref}>Recept</Link>
                   </DropdownMenuItem>
 
                   <DropdownMenuSeparator />
@@ -112,7 +117,7 @@ export function ListToolbar({
                 <Link href={`/`}>Tillbaka</Link>
               </Button>
               <Button asChild variant="outline" size="sm" className="touch-manipulation">
-                <Link href={`/l/${listId}/recipes`}>Recept</Link>
+                <Link href={recipesHref}>Recept</Link>
               </Button>
               <div className="flex gap-2">
                 <Button

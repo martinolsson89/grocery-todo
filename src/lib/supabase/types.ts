@@ -91,29 +91,50 @@ export type Database = {
         Row: {
           id: string;
           list_id: string;
-          title: string;
+          title: string | null;
           url: string;
           sort_order: number;
           created_at: string;
           updated_at: string;
+
+          ingredients: string[] | null;
+          instructions: string | null;
+          yields: string | null;
+          total_time: number | null;
+          image_url: string | null;
+          host: string | null;
         };
         Insert: {
           id: string;
           list_id: string;
-          title: string;
+          title?: string | null;
           url: string;
           sort_order?: number;
           created_at?: string;
           updated_at?: string;
+
+          ingredients?: string[] | null;
+          instructions?: string | null;
+          yields?: string | null;
+          total_time?: number | null;
+          image_url?: string | null;
+          host?: string | null;
         };
         Update: {
           id?: string;
           list_id?: string;
-          title?: string;
+          title?: string | null;
           url?: string;
           sort_order?: number;
           created_at?: string;
           updated_at?: string;
+
+          ingredients?: string[] | null;
+          instructions?: string | null;
+          yields?: string | null;
+          total_time?: number | null;
+          image_url?: string | null;
+          host?: string | null;
         };
         Relationships: [];
       };
