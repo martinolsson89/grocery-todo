@@ -1,44 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Grocery Todo
+
+A Next.js app for managing grocery lists (with optional recipe tracking) backed by Supabase.
+
+## Architecture
+
+- **Next.js (App Router)** for the UI and API routes
+- **Supabase** for auth + persistence
+- **Recipe Service (microservice)** for recipe URL scraping (see below)
+
+## Recipe Service (microservice)
+
+**Recipe Service** is a small **FastAPI** microservice that extracts structured recipe data (title, ingredients, instructions, etc.) from supported recipe web pages using `recipe-scrapers`.
+
+This app calls it via a Next.js API route:
+
+- The UI sends a recipe URL to `POST /api/recipe-scrape`.
+- The server route forwards the request to the Recipe Service at `POST /parse` and returns normalized JSON back to the client.
+
+Deployment notes (Recipe Service):
+
+- The microservice is built into a Docker image from its Dockerfile.
+- It is deployed on **Render**, which runs the image as a container.
 
 ## Environment variables
 
-Create a `.env.local` with:
+Create a `.env.local` file in the project root with the following values:
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY` (server-only; required for the old-list cleanup API)
+- `NEXT_PUBLIC_SUPABASE_URL` — Supabase project URL
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` — Supabase anon/publishable key
+- `SUPABASE_SERVICE_ROLE_KEY` — server-only service role key (required for the old-list cleanup API)
+- `RECIPE_SERVICE_URL` — base URL of the Recipe Service (example: `https://<your-service>.onrender.com`)
 
-## Getting Started
-
-First, run the development server:
+## Local development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## API routes
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `POST /api/recipe-scrape` — proxies recipe parsing to the Recipe Service (`RECIPE_SERVICE_URL` + `/parse`).
+- `POST /api/cleanup-old-lists` — calls a Supabase RPC using the service role key to delete old lists (requires an authenticated user).
 
-## Learn More
+## Tech notes
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- This project is a Next.js app (see Next.js docs: https://nextjs.org/docs).
+- Supabase migrations (if you use them) are tracked under `supabase/migrations/`.
