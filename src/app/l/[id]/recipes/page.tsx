@@ -1,15 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { use, useState } from "react";
+import { use, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 
 import { Button } from "@/src/components/ui/button";
 import { Input } from "@/src/components/ui/input";
 import { Label } from "@/src/components/ui/label";
 import { useSupabaseRecipes } from "../hooks/useSupabaseRecipes";
+import { useSupabaseBoard } from "../hooks/useSupabaseBoard";
 import { PencilIcon, Trash2Icon } from "lucide-react";
 import { EditRecipeDialog } from "./EditRecipeDialog";
 import { RecipeIngredientsDialog } from "./RecipeIngredientsDialog";
+import { coerceStoreKey, type BoardState } from "../types";
+import { suggestColumnForIngredient } from "../ingredientCategorizer";
+import { newItemId } from "../utils";
 
 function coerceHttpsUrl(raw: string) {
   const trimmed = raw.trim();
@@ -116,11 +122,27 @@ function extractNonNegativeInt(payload: unknown, key: string): number | null {
 
 export default function RecipesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: listId } = use(params);
+  const searchParams = useSearchParams();
+  const store = useMemo(() => coerceStoreKey(searchParams.get("store")), [searchParams]);
+
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
-  const { recipes, isLoading, error, addRecipe, updateRecipe, deleteRecipe } = useSupabaseRecipes(listId);
+  const {
+    recipes,
+    isLoading: recipesLoading,
+    error: recipesError,
+    addRecipe,
+    updateRecipe,
+    deleteRecipe,
+  } = useSupabaseRecipes(listId);
+
+  const {
+    setBoard,
+    isLoading: boardLoading,
+    error: boardError,
+  } = useSupabaseBoard(listId, store);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -316,7 +338,7 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
     }
   }
 
-  if (isLoading) {
+  if (recipesLoading) {
     return (
       <main className="min-h-screen p-3 sm:p-4 flex items-center justify-center">
         <p className="text-muted-foreground">Laddar recept…</p>
@@ -324,12 +346,61 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
     );
   }
 
-  if (error) {
+  if (recipesError) {
     return (
       <main className="min-h-screen p-3 sm:p-4 flex items-center justify-center">
-        <p className="text-destructive">{error}</p>
+        <p className="text-destructive">{recipesError}</p>
       </main>
     );
+  }
+
+  const normalizeItemText = (s: string) => s.trim().toLocaleLowerCase("sv-SE");
+
+  async function handleAddSelectedIngredients(lines: string[]) {
+    if (boardLoading || boardError) return;
+    if (!lines || lines.length === 0) return;
+
+    let addedCount = 0;
+
+    await setBoard((prev) => {
+      const next: BoardState = structuredClone(prev);
+
+      const existingNormalized = new Set(
+        Object.values(next.items).map((item) => normalizeItemText(item.text))
+      );
+
+      for (const rawLine of lines) {
+        const { columnId, normalized } = suggestColumnForIngredient(rawLine, store, next);
+        const text = normalized.trim();
+        if (!text) continue;
+
+        const key = normalizeItemText(text);
+        if (existingNormalized.has(key)) continue;
+
+        const id = newItemId();
+        next.items[id] = { id, text, checked: false };
+
+        const targetColumnId = next.columns[columnId]
+          ? columnId
+          : next.columnOrder[0] ?? columnId;
+        if (!next.columns[targetColumnId]) continue;
+
+        next.columns[targetColumnId].itemIds.unshift(id);
+        existingNormalized.add(key);
+        addedCount++;
+      }
+
+      return next;
+    });
+
+    if (addedCount === 0) {
+      toast.message("Inga nya ingredienser att lägga till.");
+      return;
+    }
+
+    const plural = addedCount === 1 ? "ingrediens" : "ingredienser";
+    const verb = addedCount === 1 ? "tillagd" : "tillagda";
+    toast.success(`${addedCount} ${plural} ${verb}.`);
   }
 
   return (
@@ -354,6 +425,7 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
             error={scrapeState.status === "error" ? scrapeState.error : null}
             sourceUrl={scrapeState.sourceUrl}
             title={scrapeState.title}
+            onAddSelected={!boardLoading && !boardError ? handleAddSelectedIngredients : undefined}
           />
           <h1 className="text-lg sm:text-2xl font-semibold leading-tight wrap-break-word">
             Recept
@@ -361,7 +433,7 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
           <p className="text-sm text-muted-foreground">Lägg till och öppna recept för listan.</p>
         </div>
         <Button asChild variant="outline" size="sm" className="touch-manipulation">
-          <Link href={`/l/${listId}`}>Tillbaka</Link>
+          <Link href={`/l/${listId}?store=${store}`}>Tillbaka</Link>
         </Button>
       </div>
 
@@ -373,7 +445,7 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
             name="recipeTitle"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            autoFocus
+            placeholder="Valfritt"
           />
         </div>
 
@@ -385,6 +457,7 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://..."
+            autoFocus
           />
         </div>
 
@@ -429,7 +502,7 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
                   <Trash2Icon />
                 </Button>
                 <Button asChild variant="outline" size="sm" className="shrink-0">
-                  <Link href={`/l/${listId}/recipes/${r.id}`}>Mer info</Link>
+                  <Link href={`/l/${listId}/recipes/${r.id}?store=${store}`}>Mer info</Link>
                 </Button>
                 <Button asChild variant="outline" size="sm" className="shrink-0">
                   <a href={r.url} target="_blank" rel="noreferrer noopener">

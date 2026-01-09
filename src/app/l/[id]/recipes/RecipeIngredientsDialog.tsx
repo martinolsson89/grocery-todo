@@ -23,6 +23,7 @@ interface RecipeIngredientsDialogProps {
   error: string | null;
   sourceUrl: string;
   title: string | null;
+  onAddSelected?: (ingredients: string[]) => void | Promise<void>;
 }
 
 export function RecipeIngredientsDialog({
@@ -33,6 +34,7 @@ export function RecipeIngredientsDialog({
   error,
   sourceUrl,
   title,
+  onAddSelected,
 }: RecipeIngredientsDialogProps) {
   const description = title ? `${title} · ${sourceUrl}` : sourceUrl;
 
@@ -42,6 +44,7 @@ export function RecipeIngredientsDialog({
   );
 
   const [uncheckedByKey, setUncheckedByKey] = useState<Record<string, true>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
@@ -128,10 +131,21 @@ export function RecipeIngredientsDialog({
           {status === "success" ? (
             <Button
               type="button"
-              disabled={ingredients.length === 0 || checkedIngredients.length === 0}
-              onClick={() => {
-                // Frontend behavior only for now; wiring to grocery list comes next.
-                void checkedIngredients;
+              disabled={
+                isSubmitting ||
+                ingredients.length === 0 ||
+                checkedIngredients.length === 0 ||
+                !onAddSelected
+              }
+              onClick={async () => {
+                if (!onAddSelected) return;
+                setIsSubmitting(true);
+                try {
+                  await onAddSelected(checkedIngredients);
+                  handleOpenChange(false);
+                } finally {
+                  setIsSubmitting(false);
+                }
               }}
             >
               Lägg till valda

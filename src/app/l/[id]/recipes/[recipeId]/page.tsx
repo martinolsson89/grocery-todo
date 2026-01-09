@@ -20,10 +20,16 @@ function formatMinutes(totalTime: number | null) {
 
 export default async function RecipeDetailsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string; recipeId: string }>;
+  searchParams?: Promise<{ store?: string }> | { store?: string };
 }) {
   const { id: listId, recipeId } = await params;
+
+  const resolvedSearchParams = await Promise.resolve(searchParams);
+  const store = resolvedSearchParams?.store;
+  const backHref = store ? `/l/${listId}/recipes?store=${store}` : `/l/${listId}/recipes`;
 
   const supabase = await createClient();
 
@@ -54,7 +60,7 @@ export default async function RecipeDetailsPage({
           </p>
         </div>
         <Button asChild variant="outline" size="sm" className="touch-manipulation">
-          <Link href={`/l/${listId}/recipes`}>Tillbaka</Link>
+          <Link href={backHref}>Tillbaka</Link>
         </Button>
       </div>
 
