@@ -6,6 +6,14 @@ import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { Button } from "@/src/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/src/components/ui/dialog";
 import { Input } from "@/src/components/ui/input";
 import { Label } from "@/src/components/ui/label";
 import { useSupabaseRecipes } from "../hooks/useSupabaseRecipes";
@@ -162,6 +170,8 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
     image_url: null,
     host: null,
   });
+  const [duplicateItemsOpen, setDuplicateItemsOpen] = useState(false);
+  const [duplicateItems, setDuplicateItems] = useState<string[]>([]);
 
   function openEditDialog(recipe: { id: string; title: string; url: string }) {
     setEditId(recipe.id);
@@ -217,6 +227,13 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
         image_url: null,
         host: null,
       });
+    }
+  }
+
+  function handleDuplicateItemsOpenChange(open: boolean) {
+    setDuplicateItemsOpen(open);
+    if (!open) {
+      setDuplicateItems([]);
     }
   }
 
@@ -361,6 +378,7 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
     if (!lines || lines.length === 0) return;
 
     let addedCount = 0;
+    const foundDuplicates: string[] = [];
 
     await setBoard((prev) => {
       const next: BoardState = structuredClone(prev);
@@ -368,6 +386,7 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
       const existingNormalized = new Set(
         Object.values(next.items).map((item) => normalizeItemText(item.text))
       );
+      const reportedDuplicates = new Set<string>();
 
       for (const rawLine of lines) {
         const { columnId, normalized } = suggestColumnForIngredient(rawLine, store, next);
@@ -375,7 +394,10 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
         if (!text) continue;
 
         const key = normalizeItemText(text);
-        if (existingNormalized.has(key)) continue;
+        if (existingNormalized.has(key) && !reportedDuplicates.has(key)) {
+          foundDuplicates.push(text);
+          reportedDuplicates.add(key);
+        }
 
         const id = newItemId();
         next.items[id] = { id, text, checked: false };
@@ -386,7 +408,6 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
         if (!next.columns[targetColumnId]) continue;
 
         next.columns[targetColumnId].itemIds.unshift(id);
-        existingNormalized.add(key);
         addedCount++;
       }
 
@@ -401,6 +422,11 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
     const plural = addedCount === 1 ? "ingrediens" : "ingredienser";
     const verb = addedCount === 1 ? "tillagd" : "tillagda";
     toast.success(`${addedCount} ${plural} ${verb}.`);
+
+    if (foundDuplicates.length > 0) {
+      setDuplicateItems(foundDuplicates);
+      setDuplicateItemsOpen(true);
+    }
   }
 
   return (
@@ -427,6 +453,29 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
             title={scrapeState.title}
             onAddSelected={!boardLoading && !boardError ? handleAddSelectedIngredients : undefined}
           />
+          <Dialog open={duplicateItemsOpen} onOpenChange={handleDuplicateItemsOpenChange}>
+            <DialogContent className="sm:max-w-106.25">
+              <DialogHeader>
+                <DialogTitle>Dubbletter tillagda</DialogTitle>
+                <DialogDescription>
+                  {duplicateItems.length} ingrediens(er) fanns redan i listan.
+                  De lades till ändå så att du kan hantera dem manuellt.
+                </DialogDescription>
+              </DialogHeader>
+              <ul className="text-sm space-y-2 max-h-72 overflow-y-auto">
+                {duplicateItems.map((item, idx) => (
+                  <li key={`${idx}-${item}`} className="wrap-break-words">
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <DialogFooter>
+                <Button type="button" onClick={() => handleDuplicateItemsOpenChange(false)}>
+                  Okej
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <h1 className="text-lg sm:text-2xl font-semibold leading-tight wrap-break-word">
             Recept
           </h1>

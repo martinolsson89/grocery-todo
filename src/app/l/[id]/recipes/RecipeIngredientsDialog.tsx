@@ -36,7 +36,15 @@ export function RecipeIngredientsDialog({
   title,
   onAddSelected,
 }: RecipeIngredientsDialogProps) {
-  const description = title ? `${title} · ${sourceUrl}` : sourceUrl;
+  const description = title ? (
+    <>
+      <span className="wrap-break-words">{title}</span>
+      <span className="mx-1">-</span>
+      <span className="break-all">{sourceUrl}</span>
+    </>
+  ) : (
+    <span className="break-all">{sourceUrl}</span>
+  );
 
   const ingredientKeys = useMemo(
     () => ingredients.map((ingredient, idx) => `${idx}-${ingredient}`),
