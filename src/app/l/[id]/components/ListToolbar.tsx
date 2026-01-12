@@ -33,6 +33,8 @@ interface ListToolbarProps {
   checkFilter: "all" | "checked" | "unchecked";
   onCheckFilterChange: (filter: "all" | "checked" | "unchecked") => void;
 
+  onBackToHomeClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
+
   children?: React.ReactNode;
 }
 
@@ -49,6 +51,7 @@ export function ListToolbar({
   onClear,
   checkFilter,
   onCheckFilterChange,
+  onBackToHomeClick,
   children,
 }: ListToolbarProps) {
   const recipesHref = `/l/${listId}/recipes?store=${store}`;
@@ -68,7 +71,9 @@ export function ListToolbar({
           <div className="flex justify-end shrink-0">
             <div className="sm:hidden">
               <Button asChild variant="outline" size="sm" className="touch-manipulation mr-1">
-                <Link href={`/`}>Tillbaka</Link>
+                <Link href={`/`} onClick={onBackToHomeClick}>
+                  Tillbaka
+                </Link>
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -114,7 +119,9 @@ export function ListToolbar({
 
             <div className="hidden sm:flex sm:flex-wrap sm:gap-2 sm:justify-end">
               <Button asChild variant="outline" size="sm" className="touch-manipulation">
-                <Link href={`/`}>Tillbaka</Link>
+                <Link href={`/`} onClick={onBackToHomeClick}>
+                  Tillbaka
+                </Link>
               </Button>
               <Button asChild variant="outline" size="sm" className="touch-manipulation">
                 <Link href={recipesHref}>Recept</Link>
