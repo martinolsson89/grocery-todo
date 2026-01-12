@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   DndContext,
@@ -55,7 +55,10 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
   const [newText, setNewText] = useState("");
   const [targetColumn, setTargetColumn] = useState("frukt_gront");
   const [copied, setCopied] = useState(false);
+  const [hasCopiedLink, setHasCopiedLink] = useState(false);
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
+  const skipNextPopState = useRef(false);
+  const hasCopiedLinkRef = useRef(hasCopiedLink);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -70,6 +73,51 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
     const raw = window.localStorage.getItem(viewModeStorageKey);
     return raw === "flat" || raw === "sections" ? raw : "sections";
   });
+
+  const confirmLeaveWithoutCopy = () => {
+    if (hasCopiedLinkRef.current) return true;
+    return window.confirm(
+      "Innan du lämnar listan, kopiera länken till listan så du inte tappar bort den. Lämna ändå?"
+    );
+  };
+
+  useEffect(() => {
+    hasCopiedLinkRef.current = hasCopiedLink;
+  }, [hasCopiedLink]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handlePopState = () => {
+      if (skipNextPopState.current) {
+        skipNextPopState.current = false;
+        return;
+      }
+
+      if (hasCopiedLinkRef.current) {
+        skipNextPopState.current = true;
+        window.history.back();
+        return;
+      }
+
+      const shouldLeave = confirmLeaveWithoutCopy();
+
+      if (shouldLeave) {
+        skipNextPopState.current = true;
+        window.history.back();
+        return;
+      }
+
+      window.history.pushState(null, "", window.location.href);
+    };
+
+    window.history.pushState(null, "", window.location.href);
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
 
 
   const [addFormOpen, setAddFormOpen] = useState(() => {
@@ -385,6 +433,7 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
           try {
             await navigator.clipboard.writeText(window.location.href);
             setCopied(true);
+            setHasCopiedLink(true);
             setTimeout(() => setCopied(false), 2000);
           } catch {
             setCopied(false);
@@ -392,7 +441,11 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
         } }
         onClear={cleanBoard}
         checkFilter={checkFilter}
-        onCheckFilterChange={setCheckFilter} 
+        onCheckFilterChange={setCheckFilter}
+        onBackToHomeClick={(event) => {
+          if (confirmLeaveWithoutCopy()) return;
+          event.preventDefault();
+        }}
       >
         <AddItemFormCard
           open={addFormOpen}
