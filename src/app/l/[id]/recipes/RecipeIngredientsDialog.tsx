@@ -67,7 +67,7 @@ export function RecipeIngredientsDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-106.25">
+      <DialogContent className="sm:max-w-106.25 max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Ingredienser</DialogTitle>
           <DialogDescription className="wrap-break-words">
@@ -75,7 +75,7 @@ export function RecipeIngredientsDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-3 py-2">
+        <div className="grid gap-3 py-2 overflow-y-auto flex-1">
           {status === "loading" ? (
             <p className="text-sm text-muted-foreground">Hämtar ingredienser…</p>
           ) : null}
