@@ -1,4 +1,5 @@
 import { BoardState, StoreKey, getDefaultBoardForStore } from "./types";
+import rulesJson from "./ingredientRules.json";
 
 type ColumnId = string;
 
@@ -82,29 +83,7 @@ type Rule = {
 };
 
 const RULES: Rule[] = [
-  // Hemköp-specifik
-  { columnId: "agg", keywords: ["ägg", "äggula", "äggulor", "äggvita", "äggvitor"] },
-  { columnId: "tacohyllan", keywords: ["taco", "tortilla", "salsa", "tacokrydda", "tacosås", "nachochips"] },
-
-  // Grönt
-  { columnId: "frukt_gront", keywords: ["persilja","basilika","dill","gräslök","citron","lime","lök","vitlök", "klyftor vitlök" ,"gul lök", "röd lök", "rödlök", "gullök", "schalottenlök","tomat", "tomater","potatis","morot","sallad","paprika", "banan", "bananer", "äpple", "appelsin", "salladslök", "salladslökar", "ingefära", "pak choi", "avokado"] },
-
-  // Protein / chark
-  { columnId: "chark", keywords: ["pancetta","bacon","prosciutto","salami","skinka","griskind"] },
-  { columnId: "protein", keywords: ["lövbiff","kyckling","färs","nötfärs","fläsk","tofu", "köttfärs"] },
-
-  // Mejeri / ost/pålägg
-  { columnId: "ost_palagg", keywords: ["pecorino","parmesan","mozzarella","burrata","halloumi","feta","ost","riven ost"] },
-  { columnId: "mejeri", keywords: ["mjölk","grädde","vispgrädde","crème fraîche","creme fraiche","yoghurt","smör"] },
-
-  { columnId: "frysvaror", keywords: ["köttbullar","lax","torsk","kycklingklubbor","kycklinigfilé","Kyckling innerlårfilé","haricots verts"] },
-
-  // Skafferi / torrvaror / kryddor / oljor
-  { columnId: "skafferi", keywords: ["vetemjöl","mjöl","pasta","ris","tomatpuré","fond","oxfond","buljong","salt","flingsalt","svartpeppar","peppar","olivolja","rapsolja", "bulgur", "couscous", "tonfisk", "burkar tonfisk", "burk tonfisk", "dijonsenap", "oliver", "vitvinsvinäger", "vinäger", "bönor","linser"] },
-
-  // All världens / asiatiskt
-  { columnId: "asiatiskt", keywords: ["soja","kinesisk soja", "japansk soja" ,"fisksås","sesamolja","miso","sriracha", "nudlar", "glasnudlar"] },
-
+  ...rulesJson,
   // fallback
   { columnId: "ovrigt", regex: /.*/ },
 ];
