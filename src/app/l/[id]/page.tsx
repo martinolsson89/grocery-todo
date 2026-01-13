@@ -21,6 +21,7 @@ import { ListStats } from "./components/ListStats";
 import { SectionColumn } from "./components/SectionColumn";
 import { DuplicateItemDialog } from "./components/DuplicateItemDialog";
 import { EditItemDialog } from "./components/EditItemDialog";
+import { ConfirmClearDialog } from "./components/ConfirmClearDialog";
 import { FlatListCard } from "./components/FlatListCard";
 import { ListToolbar } from "./components/ListToolbar";
 import { AddItemFormCard } from "./components/AddItemFormCard";
@@ -67,6 +68,7 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
   const [duplicateOpen, setDuplicateOpen] = useState(false);
   const [duplicateExistingId, setDuplicateExistingId] = useState<string | null>(null);
   const [duplicateProposedText, setDuplicateProposedText] = useState("");
+  const [clearOpen, setClearOpen] = useState(false);
 
   const [viewMode, setViewMode] = useState<"sections" | "flat">(() => {
     if (typeof window === "undefined") return "sections";
@@ -148,15 +150,17 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
 
   const activeItem = activeItemId ? board.items[activeItemId] : null;
 
-  async function cleanBoard() {
-    const confirmed = window.confirm("Är du säker på att du vill rensa listan?");
-    if (!confirmed) return;
-
+  async function handleClearConfirm() {
+    setClearOpen(false);
     try {
       await Promise.resolve(resetBoard());
     } catch (e) {
       console.error("Failed to reset board", e);
     }
+  }
+
+  function handleClearOpenChange(open: boolean) {
+    setClearOpen(open);
   }
 
   const columnsInOrder = useMemo(
@@ -420,6 +424,12 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
         onSubmit={saveEdit}
       />
 
+      <ConfirmClearDialog
+        open={clearOpen}
+        onOpenChange={handleClearOpenChange}
+        onConfirm={handleClearConfirm}
+      />
+
       <ListToolbar
         listId={listId}
         store={store}
@@ -439,7 +449,7 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
             setCopied(false);
           }
         } }
-        onClear={cleanBoard}
+        onClear={() => setClearOpen(true)}
         checkFilter={checkFilter}
         onCheckFilterChange={setCheckFilter}
         onBackToHomeClick={(event) => {
