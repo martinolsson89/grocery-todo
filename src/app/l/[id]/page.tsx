@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   DndContext,
   DragEndEvent,
@@ -21,16 +21,19 @@ import { ListStats } from "./components/ListStats";
 import { SectionColumn } from "./components/SectionColumn";
 import { DuplicateItemDialog } from "./components/DuplicateItemDialog";
 import { EditItemDialog } from "./components/EditItemDialog";
-import { ConfirmClearDialog } from "./components/ConfirmClearDialog";
+import { ConfirmDialog } from "./components/ConfirmDialog";
 import { FlatListCard } from "./components/FlatListCard";
 import { ListToolbar } from "./components/ListToolbar";
 import { AddItemFormCard } from "./components/AddItemFormCard";
 import { BoardState, coerceStoreKey } from "./types";
 import { findContainer, newItemId } from "./utils";
 
+import { toast } from "sonner";
+
 export default function ListPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: listId } = use(params);
   const searchParams = useSearchParams();
+  const router = useRouter();
   const store = useMemo(() => coerceStoreKey(searchParams.get("store")), [searchParams]);
 
   const addFormStorageKey = useMemo(
@@ -60,6 +63,7 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const skipNextPopState = useRef(false);
   const hasCopiedLinkRef = useRef(hasCopiedLink);
+  const backNavigationIntent = useRef<"home" | "browser" | null>(null);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -69,19 +73,15 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
   const [duplicateExistingId, setDuplicateExistingId] = useState<string | null>(null);
   const [duplicateProposedText, setDuplicateProposedText] = useState("");
   const [clearOpen, setClearOpen] = useState(false);
+  const [backOpen, setBackOpen] = useState(false);
+
+
 
   const [viewMode, setViewMode] = useState<"sections" | "flat">(() => {
     if (typeof window === "undefined") return "sections";
     const raw = window.localStorage.getItem(viewModeStorageKey);
     return raw === "flat" || raw === "sections" ? raw : "sections";
   });
-
-  const confirmLeaveWithoutCopy = () => {
-    if (hasCopiedLinkRef.current) return true;
-    return window.confirm(
-      "Innan du lämnar listan, kopiera länken till listan så du inte tappar bort den. Lämna ändå?"
-    );
-  };
 
   useEffect(() => {
     hasCopiedLinkRef.current = hasCopiedLink;
@@ -98,18 +98,12 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
 
       if (hasCopiedLinkRef.current) {
         skipNextPopState.current = true;
-        window.history.back();
+        router.push("/");
         return;
       }
 
-      const shouldLeave = confirmLeaveWithoutCopy();
-
-      if (shouldLeave) {
-        skipNextPopState.current = true;
-        window.history.back();
-        return;
-      }
-
+      backNavigationIntent.current = "browser";
+      setBackOpen(true);
       window.history.pushState(null, "", window.location.href);
     };
 
@@ -119,7 +113,7 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
-  }, []);
+  }, [router]);
 
 
   const [addFormOpen, setAddFormOpen] = useState(() => {
@@ -149,6 +143,31 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
   const normalizeItemText = (s: string) => s.trim().toLocaleLowerCase("sv-SE");
 
   const activeItem = activeItemId ? board.items[activeItemId] : null;
+
+  const handleBackConfirm = () => {
+    setBackOpen(false);
+    const intent = backNavigationIntent.current;
+    backNavigationIntent.current = null;
+    if (intent === "browser") {
+      router.push("/");
+      return;
+    }
+    router.push("/");
+  };
+
+  function handleBackOpenChange(open: boolean) {
+    setBackOpen(open);
+    if (!open) {
+      backNavigationIntent.current = null;
+    }
+  }
+
+  function handleBackToHomeClick(event: React.MouseEvent<HTMLAnchorElement>) {
+    if (hasCopiedLinkRef.current) return;
+    event.preventDefault();
+    backNavigationIntent.current = "home";
+    setBackOpen(true);
+  }
 
   async function handleClearConfirm() {
     setClearOpen(false);
@@ -424,10 +443,22 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
         onSubmit={saveEdit}
       />
 
-      <ConfirmClearDialog
+      <ConfirmDialog
         open={clearOpen}
         onOpenChange={handleClearOpenChange}
         onConfirm={handleClearConfirm}
+        title="Rensa listan?"
+        description="Detta tar bort alla varor."
+        confirmLabel="Rensa"
+      />
+
+      <ConfirmDialog
+        open={backOpen}
+        onOpenChange={handleBackOpenChange}
+        onConfirm={handleBackConfirm}
+        title="Lämna listan?"
+        description="Om du lämnar listan utan att kopiera länken så kan du inte komma tillbaka, lämna ändå?"
+        confirmLabel="Lämna"
       />
 
       <ListToolbar
@@ -445,6 +476,7 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
             setCopied(true);
             setHasCopiedLink(true);
             setTimeout(() => setCopied(false), 2000);
+            toast.success("Länken är kopierad!");
           } catch {
             setCopied(false);
           }
@@ -452,10 +484,7 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
         onClear={() => setClearOpen(true)}
         checkFilter={checkFilter}
         onCheckFilterChange={setCheckFilter}
-        onBackToHomeClick={(event) => {
-          if (confirmLeaveWithoutCopy()) return;
-          event.preventDefault();
-        }}
+        onBackToHomeClick={handleBackToHomeClick}
       >
         <AddItemFormCard
           open={addFormOpen}
