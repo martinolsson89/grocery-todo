@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { Button } from "@/src/components/ui/button";
 import {
   Dialog,
@@ -11,17 +12,25 @@ import {
   DialogTitle,
 } from "@/src/components/ui/dialog";
 
-interface ConfirmClearDialogProps {
+interface ConfirmDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
+  title: string;
+  description: string;
+  confirmLabel: string;
+  confirmVariant?: ComponentProps<typeof Button>["variant"];
 }
 
-export function ConfirmClearDialog({
+export function ConfirmDialog({
   open,
   onOpenChange,
   onConfirm,
-}: ConfirmClearDialogProps) {
+  title,
+  description,
+  confirmLabel,
+  confirmVariant
+}: ConfirmDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -32,8 +41,8 @@ export function ConfirmClearDialog({
         }}
       >
         <DialogHeader>
-          <DialogTitle>Rensa listan?</DialogTitle>
-          <DialogDescription>Detta tar bort alla varor.</DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <DialogFooter className="gap-2 sm:gap-2">
@@ -42,8 +51,8 @@ export function ConfirmClearDialog({
               Avbryt
             </Button>
           </DialogClose>
-          <Button type="button" variant="destructive" onClick={onConfirm}>
-            Rensa
+          <Button type="button" variant={confirmVariant ?? "destructive"} onClick={onConfirm}>
+            {confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>
