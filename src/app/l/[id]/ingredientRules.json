@@ -84,6 +84,7 @@
       "grön chili",
       "purjolök",
       "fänkål",
+      "grönkål",
       "selleri",
       "rotselleri",
       "palsternacka",
@@ -196,7 +197,9 @@
       "gorgonzola",
       "stilton",
       "färskost",
-      "cream cheese"
+      "cream cheese",
+      "västerbottensost",
+      "Parmigiano Reggiano"
     ]
   },
   {
@@ -255,6 +258,7 @@
   {
     "columnId": "skafferi",
     "keywords": [
+      "spaghetti",
       "bulgur",
       "buljong",
       "burk tonfisk",
