@@ -271,9 +271,21 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
     const nextTitle = title.trim();
     const nextUrl = coerceHttpsUrl(url);
 
-    if (!nextUrl) {
-      setFormError("Ange en URL till receptet.");
+    if (!nextUrl && !nextTitle) {
+      setFormError("Ange en URL eller titel till receptet.");
       return;
+    }
+
+    if(!nextUrl && nextTitle) {
+      try {
+        await addRecipe(nextTitle, ""); // or null (see note below)
+        setTitle("");
+        setUrl("");
+        toast.success("Recept tillagt.");
+      } catch {
+          setFormError("Kunde inte lägga till receptet.");
+      }
+    return;
     }
 
     try {
@@ -494,7 +506,8 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
             name="recipeTitle"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Valfritt"
+            placeholder="Pasta Carbonara"
+            autoFocus
           />
         </div>
 
@@ -506,7 +519,6 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://..."
-            autoFocus
           />
         </div>
 
