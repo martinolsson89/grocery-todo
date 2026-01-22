@@ -17,11 +17,24 @@ export type BoardState = {
 };
 
 export type StoreKey = "willys" | "hemkop";
+export type StoreTemplateId = "willys_default" | "hemkop_default";
 
 export const DEFAULT_STORE: StoreKey = "willys";
+export const STORE_LABEL: Record<StoreKey, string> = {
+  willys: "Willys",
+  hemkop: "Hemköp",
+};
+export const STORE_TEMPLATE_BY_STORE: Record<StoreKey, StoreTemplateId> = {
+  willys: "willys_default",
+  hemkop: "hemkop_default",
+};
 
 export function coerceStoreKey(value: string | null | undefined): StoreKey {
   return value === "hemkop" ? "hemkop" : "willys";
+}
+
+export function getStoreTemplateId(store: StoreKey): StoreTemplateId {
+  return STORE_TEMPLATE_BY_STORE[store];
 }
 
 export const DEFAULT_BOARD: BoardState = {
@@ -35,10 +48,11 @@ export const DEFAULT_BOARD: BoardState = {
     protein: { id: "protein", title: "Protein (Färskt)", itemIds: [] },
     mejeri: { id: "mejeri", title: "Mejeri", itemIds: [] },
     frysvaror: { id: "frysvaror", title: "Frysvaror", itemIds: [] },
-    asiatiskt: { id: "asiatiskt", title: "All världens mat", itemIds: [] },
+    asiatiskt: { id: "asiatiskt", title: "Asiatiskt", itemIds: [] },
+    tacohyllan: { id: "tacohyllan", title: "Tacohyllan", itemIds: [] },
     skafferi: { id: "skafferi", title: "Skafferi", itemIds: [] },
-    snacks: { id: "snacks", title: "Snacks", itemIds: [] },
     dryck: { id: "dryck", title: "Dryck", itemIds: [] },
+    snacks: { id: "snacks", title: "Snacks", itemIds: [] },
     stadvaror: { id: "stadvaror", title: "Städvaror", itemIds: [] },
     barn: { id: "barn", title: "Barn", itemIds: [] },
     hygien: { id: "hygien", title: "Hygien", itemIds: [] },
@@ -55,9 +69,10 @@ export const DEFAULT_BOARD: BoardState = {
     "mejeri",
     "frysvaror",
     "asiatiskt",
+    "tacohyllan",
     "skafferi",
-    "snacks",
     "dryck",
+    "snacks",
     "stadvaror",
     "barn",
     "hygien",
@@ -70,15 +85,14 @@ export const HEMKOP_BOARD: BoardState = {
   items: {},
   columns: {
     frukt_gront: { id: "frukt_gront", title: "Frukt & Grönt", itemIds: [] },
-    fika: { id: "fika", title: "Fika", itemIds: [] },
     brod: { id: "brod", title: "Bröd", itemIds: [] },
+    fika: { id: "fika", title: "Fika", itemIds: [] },
     chark: { id: "chark", title: "Chark", itemIds: [] },
     ost_palagg: { id: "ost_palagg", title: "Ost/skinka/pålägg", itemIds: [] },
     protein: { id: "protein", title: "Protein (Färskt)", itemIds: [] },
     tacohyllan: { id: "tacohyllan", title: "Tacohyllan", itemIds: [] },
     frysvaror: { id: "frysvaror", title: "Frysvaror", itemIds: [] },
     mejeri: { id: "mejeri", title: "Mejeri", itemIds: [] },
-    agg: { id: "agg", title: "Ägg", itemIds: [] },
     dryck: { id: "dryck", title: "Dryck", itemIds: [] },
     snacks: { id: "snacks", title: "Snacks", itemIds: [] },
     skafferi: { id: "skafferi", title: "Skafferi", itemIds: [] },
@@ -91,15 +105,14 @@ export const HEMKOP_BOARD: BoardState = {
   },
   columnOrder: [
     "frukt_gront",
-    "fika",
     "brod",
+    "fika",
     "chark",
     "ost_palagg",
     "protein",
     "tacohyllan",
     "frysvaror",
     "mejeri",
-    "agg",
     "dryck",
     "snacks",
     "skafferi",
@@ -115,3 +128,4 @@ export const HEMKOP_BOARD: BoardState = {
 export function getDefaultBoardForStore(store: StoreKey): BoardState {
   return store === "hemkop" ? HEMKOP_BOARD : DEFAULT_BOARD;
 }
+

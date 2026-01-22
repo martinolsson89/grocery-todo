@@ -15,18 +15,21 @@ export type Database = {
           created_at: string;
           updated_at: string;
           store: string | null;
+          store_template_id: string;
         };
         Insert: {
           id: string;
           created_at?: string;
           updated_at?: string;
           store?: string | null;
+          store_template_id: string;
         };
         Update: {
           id?: string;
           created_at?: string;
           updated_at?: string;
           store?: string | null;
+          store_template_id?: string;
         };
         Relationships: [];
       };
@@ -135,6 +138,69 @@ export type Database = {
           total_time?: number | null;
           image_url?: string | null;
           host?: string | null;
+        };
+        Relationships: [];
+      };
+      store_template_columns: {
+        Row: {
+          template_id: string;
+          id: string;
+          title: string;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          template_id: string;
+          id: string;
+          title: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          template_id?: string;
+          id?: string;
+          title?: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      store_templates: {
+        Row: {
+          id: string;
+          store_id: string;
+          name: string;
+          created_at: string;
+        };
+        Insert: {
+          id: string;
+          store_id: string;
+          name: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          store_id?: string;
+          name?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      stores: {
+        Row: {
+          id: string;
+          name: string;
+          created_at: string;
+        };
+        Insert: {
+          id: string;
+          name: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          created_at?: string;
         };
         Relationships: [];
       };

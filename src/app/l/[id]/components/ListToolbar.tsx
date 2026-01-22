@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/src/components/ui/button";
-import { StoreKey } from "../types";
+import { StoreKey, STORE_LABEL } from "../types";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +25,9 @@ interface ListToolbarProps {
   addFormOpen: boolean;
   onToggleAddForm: () => void;
 
+  onStoreChange: (store: StoreKey) => void;
+  isSwitchingStore?: boolean;
+
   copied: boolean;
   onCopyLink: () => void;
 
@@ -46,6 +49,8 @@ export function ListToolbar({
   onViewModeChange,
   addFormOpen,
   onToggleAddForm,
+  onStoreChange,
+  isSwitchingStore,
   copied,
   onCopyLink,
   onClear,
@@ -87,6 +92,21 @@ export function ListToolbar({
                   </DropdownMenuItem>
 
                   <DropdownMenuSeparator />
+                  <DropdownMenuLabel>Butik</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={store}
+                    onValueChange={(value) => onStoreChange(value as StoreKey)}
+                  >
+                    <DropdownMenuRadioItem value="willys" disabled={isSwitchingStore}>
+                      Willys
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="hemkop" disabled={isSwitchingStore}>
+                      Hemköp
+                    </DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+
+                  <DropdownMenuSeparator />
+
                   <DropdownMenuLabel>Vy</DropdownMenuLabel>
                   <DropdownMenuRadioGroup
                     value={viewMode}
@@ -123,6 +143,27 @@ export function ListToolbar({
                   Tillbaka
                 </Link>
               </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="touch-manipulation"
+                    disabled={isSwitchingStore}
+                  >
+                    <span>{STORE_LABEL[store]}</span>
+                    <span className="ml-2">▾</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-40">
+                  <DropdownMenuItem disabled={isSwitchingStore} onClick={() => onStoreChange("willys")}>
+                    Willys
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled={isSwitchingStore} onClick={() => onStoreChange("hemkop")}>
+                    Hemköp
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button asChild variant="outline" size="sm" className="touch-manipulation">
                 <Link href={recipesHref}>Recept</Link>
               </Button>

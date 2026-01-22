@@ -3,21 +3,11 @@ import rulesJson from "./ingredientRules.json";
 
 type ColumnId = string;
 
-const STORE_REMAP: Record<StoreKey, Partial<Record<ColumnId, ColumnId>>> = {
-  willys: {
-    agg: "mejeri",          
-    tacohyllan: "asiatiskt",
-  },
-  hemkop: {},
-};
-
 function columnExists(board: BoardState, columnId: ColumnId) {
   return Boolean(board.columns[columnId]);
 }
 
-function resolveColumnId(store: StoreKey, board: BoardState, suggested: ColumnId): ColumnId {
-  const remapped = STORE_REMAP[store]?.[suggested] ?? suggested;
-  if (columnExists(board, remapped)) return remapped;
+function resolveColumnId(_store: StoreKey, board: BoardState, suggested: ColumnId): ColumnId {
   if (columnExists(board, suggested)) return suggested;
   return "ovrigt";
 }

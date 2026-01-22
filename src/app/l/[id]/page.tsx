@@ -25,7 +25,7 @@ import { ConfirmDialog } from "./components/ConfirmDialog";
 import { FlatListCard } from "./components/FlatListCard";
 import { ListToolbar } from "./components/ListToolbar";
 import { AddItemFormCard } from "./components/AddItemFormCard";
-import { BoardState, coerceStoreKey } from "./types";
+import { BoardState, coerceStoreKey, StoreKey } from "./types";
 import { findContainer, newItemId } from "./utils";
 
 import { toast } from "sonner";
@@ -34,7 +34,9 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
   const { id: listId } = use(params);
   const searchParams = useSearchParams();
   const router = useRouter();
-  const store = useMemo(() => coerceStoreKey(searchParams.get("store")), [searchParams]);
+  const storeParam = searchParams.get("store");
+  const store = useMemo(() => coerceStoreKey(storeParam), [storeParam]);
+  const shouldSyncStore = storeParam !== null;
 
   const addFormStorageKey = useMemo(
     () => `grocery-todo:list:${listId}:add-form-open`,
@@ -55,7 +57,11 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
     })
   );
 
-  const { board, setBoard, isLoading, error, resetBoard } = useSupabaseBoard(listId, store);
+  const { board, setBoard, isLoading, error, resetBoard, switchStore } = useSupabaseBoard(
+    listId,
+    store,
+    shouldSyncStore
+  );
   const [newText, setNewText] = useState("");
   const [targetColumn, setTargetColumn] = useState("frukt_gront");
   const [copied, setCopied] = useState(false);
@@ -74,6 +80,7 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
   const [duplicateProposedText, setDuplicateProposedText] = useState("");
   const [clearOpen, setClearOpen] = useState(false);
   const [backOpen, setBackOpen] = useState(false);
+  const [isSwitchingStore, setIsSwitchingStore] = useState(false);
 
 
 
@@ -180,6 +187,22 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
 
   function handleClearOpenChange(open: boolean) {
     setClearOpen(open);
+  }
+
+  async function handleStoreChange(nextStore: StoreKey) {
+    if (nextStore === store || isSwitchingStore) return;
+    setIsSwitchingStore(true);
+    const switched = await switchStore(nextStore);
+    setIsSwitchingStore(false);
+    if (!switched) {
+      toast.error("Kunde inte byta butik.");
+      return;
+    }
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("store", nextStore);
+    router.replace(`/l/${listId}?${params.toString()}`);
+    toast.success("Butiken är uppdaterad.");
   }
 
   const columnsInOrder = useMemo(
@@ -469,6 +492,8 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
         onViewModeChange={setViewMode}
         addFormOpen={addFormOpen}
         onToggleAddForm={() => setAddFormOpen((v) => !v)}
+        onStoreChange={handleStoreChange}
+        isSwitchingStore={isSwitchingStore}
         copied={copied}
         onCopyLink={async () => {
           try {

@@ -1,17 +1,5 @@
 [
   {
-    "columnId": "agg",
-    "keywords": [
-      "hårdkokta ägg",
-      "löskokta ägg",
-      "ägg",
-      "äggula",
-      "äggulor",
-      "äggvita",
-      "äggvitor"
-    ]
-  },
-  {
     "columnId": "tacohyllan",
     "keywords": [
       "nachochips",
@@ -226,7 +214,14 @@
       "gräddfil",
       "kefir",
       "smörgåsmargarin",
-      "bregott"
+      "bregott",
+      "hårdkokta ägg",
+      "löskokta ägg",
+      "ägg",
+      "äggula",
+      "äggulor",
+      "äggvita",
+      "äggvitor"
     ]
   },
   {

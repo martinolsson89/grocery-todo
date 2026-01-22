@@ -131,7 +131,9 @@ function extractNonNegativeInt(payload: unknown, key: string): number | null {
 export default function RecipesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: listId } = use(params);
   const searchParams = useSearchParams();
-  const store = useMemo(() => coerceStoreKey(searchParams.get("store")), [searchParams]);
+  const storeParam = searchParams.get("store");
+  const store = useMemo(() => coerceStoreKey(storeParam), [storeParam]);
+  const shouldSyncStore = storeParam !== null;
 
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
@@ -150,7 +152,7 @@ export default function RecipesPage({ params }: { params: Promise<{ id: string }
     setBoard,
     isLoading: boardLoading,
     error: boardError,
-  } = useSupabaseBoard(listId, store);
+  } = useSupabaseBoard(listId, store, shouldSyncStore);
 
   const [editOpen, setEditOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
