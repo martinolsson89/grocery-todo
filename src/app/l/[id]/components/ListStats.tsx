@@ -1,10 +1,14 @@
 "use client";
 
 import { useMemo } from "react";
+import type { BoardState, StoreKey } from "../types";
 
-import type { BoardState } from "../types";
+interface ListStatsProps {
+  board: BoardState;
+  store: StoreKey;
+}
 
-export function ListStats({ board }: { board: BoardState }) {
+export function ListStats({ board, store }: ListStatsProps) {
   const { total, checked } = useMemo(() => {
     const ids = board.columnOrder.flatMap((colId) => board.columns[colId]?.itemIds ?? []);
 
@@ -23,10 +27,13 @@ export function ListStats({ board }: { board: BoardState }) {
   }, [board]);
 
   return (
-    <div className="text-xs sm:text-sm text-muted-foreground">
+    <div className="text-xs sm:text-sm text-muted-foreground mt-1">
       <span>{total} varor</span>
       <span className="mx-2">•</span>
       <span>{checked} avprickade</span>
-    </div>
+      <span className="inline-flex items-center rounded-md ml-2 bg-blue-400/10 px-2 py-1 text-xs font-medium text-blue-400 inset-ring inset-ring-blue-400/30">
+        {store == "willys" ? "Willys" : "Hemköp"}
+      </span>
+      </div>
   );
 }
