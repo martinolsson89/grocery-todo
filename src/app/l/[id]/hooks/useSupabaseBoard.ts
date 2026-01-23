@@ -7,7 +7,18 @@ import {
   getStoreTemplateId,
   StoreKey,
 } from "../types";
-import type { ListColumn, ListItem } from "@/src/lib/supabase/types";
+import type { ListItem } from "@/src/lib/supabase/types";
+
+type CategoryColumn = {
+  id: string;
+  title: string;
+  sort_order: number;
+};
+
+type TemplateCategoryRow = {
+  category_id: string;
+  sort_order: number;
+};
 
 /**
  * Hook to sync board state with Supabase.
@@ -19,42 +30,40 @@ export function useSupabaseBoard(listId: string, store?: StoreKey, shouldSyncSto
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
-
-  const formatInList = (values: string[]) =>
-    `(${values.map((value) => `"${value.replace(/"/g, '\\"')}"`).join(",")})`;
 
   const switchStoreTemplate = useCallback(
     async (nextStore: StoreKey) => {
       const nextTemplateId = getStoreTemplateId(nextStore);
 
-      const { data: templateColumns, error: templateColumnsError } = await supabase
-        .from("store_template_columns")
-        .select("id, title, sort_order")
+      const { data: templateCategories, error: templateCategoriesError } = await supabase
+        .from("store_template_category_order")
+        .select("category_id, sort_order")
         .eq("template_id", nextTemplateId)
         .order("sort_order");
 
-      if (templateColumnsError) {
+      if (templateCategoriesError) {
         console.error(
-          "Error fetching template columns:",
-          templateColumnsError.message,
-          templateColumnsError.code,
-          templateColumnsError.details
+          "Error fetching template categories:",
+          templateCategoriesError.message,
+          templateCategoriesError.code,
+          templateCategoriesError.details
         );
-        setError(`Failed to load store template: ${templateColumnsError.message}`);
+        setError(`Failed to load store template: ${templateCategoriesError.message}`);
         return false;
       }
 
-      const templateIds = (templateColumns ?? []).map((col) => col.id);
-      if (!templateIds.includes("ovrigt")) {
-        setError("Store template is missing the ovrigt column.");
+      const templateIds = (templateCategories ?? []).map((row) => row.category_id);
+      if (templateIds.length === 0) {
+        setError("Store template has no categories.");
         return false;
       }
 
       const { error: updateListError } = await supabase
         .from("grocery_lists")
-        .update({ store: nextStore, store_template_id: nextTemplateId })
+        .update({ store_template_id: nextTemplateId })
         .eq("id", listId);
 
       if (updateListError) {
@@ -64,91 +73,8 @@ export function useSupabaseBoard(listId: string, store?: StoreKey, shouldSyncSto
           updateListError.code,
           updateListError.details
         );
-        setError(`Failed to update store: ${updateListError.message}`);
+        setError(`Failed to update template: ${updateListError.message}`);
         return false;
-      }
-
-      const columnsToUpsert = (templateColumns ?? []).map((col) => ({
-        id: col.id,
-        list_id: listId,
-        title: col.title,
-        sort_order: col.sort_order ?? 0,
-      }));
-
-      if (columnsToUpsert.length > 0) {
-        const { error: upsertColumnsError } = await supabase
-          .from("list_columns")
-          .upsert(columnsToUpsert, { onConflict: "list_id,id" });
-
-        if (upsertColumnsError) {
-          console.error(
-            "Error upserting list columns:",
-            upsertColumnsError.message,
-            upsertColumnsError.code,
-            upsertColumnsError.details
-          );
-          setError(`Failed to update columns: ${upsertColumnsError.message}`);
-          return false;
-        }
-
-        const updateResults = await Promise.all(
-          columnsToUpsert.map((col) =>
-            supabase
-              .from("list_columns")
-              .update({ title: col.title, sort_order: col.sort_order })
-              .eq("list_id", listId)
-              .eq("id", col.id)
-          )
-        );
-
-        const updateError = updateResults.find((res) => res.error)?.error;
-        if (updateError) {
-          console.error(
-            "Error syncing column order:",
-            updateError.message,
-            updateError.code,
-            updateError.details
-          );
-          setError(`Failed to sync column order: ${updateError.message}`);
-          return false;
-        }
-      }
-
-      if (templateIds.length > 0) {
-        const inList = formatInList(templateIds);
-        const { error: remapItemsError } = await supabase
-          .from("list_items")
-          .update({ column_id: "ovrigt" })
-          .eq("list_id", listId)
-          .not("column_id", "in", inList);
-
-        if (remapItemsError) {
-          console.error(
-            "Error remapping items:",
-            remapItemsError.message,
-            remapItemsError.code,
-            remapItemsError.details
-          );
-          setError(`Failed to remap items: ${remapItemsError.message}`);
-          return false;
-        }
-
-        const { error: deleteColumnsError } = await supabase
-          .from("list_columns")
-          .delete()
-          .eq("list_id", listId)
-          .not("id", "in", inList);
-
-        if (deleteColumnsError) {
-          console.error(
-            "Error removing old columns:",
-            deleteColumnsError.message,
-            deleteColumnsError.code,
-            deleteColumnsError.details
-          );
-          setError(`Failed to clean up columns: ${deleteColumnsError.message}`);
-          return false;
-        }
       }
 
       return true;
@@ -158,54 +84,50 @@ export function useSupabaseBoard(listId: string, store?: StoreKey, shouldSyncSto
 
   // Convert database rows to BoardState
   const dbToBoardState = useCallback(
-    (columns: ListColumn[], items: ListItem[]): BoardState => {
+    (categories: CategoryColumn[], items: ListItem[]): BoardState => {
       const boardColumns: Record<string, { id: string; title: string; itemIds: string[] }> = {};
       const boardItems: Record<string, { id: string; text: string; checked: boolean }> = {};
 
-      // Sort columns by sort_order
-      const sortedColumns = [...columns].sort((a, b) => a.sort_order - b.sort_order);
+      const sortedCategories = [...categories].sort((a, b) => a.sort_order - b.sort_order);
 
-      // Create column map
-      for (const col of sortedColumns) {
-        boardColumns[col.id] = {
-          id: col.id,
-          title: col.title,
+      for (const category of sortedCategories) {
+        boardColumns[category.id] = {
+          id: category.id,
+          title: category.title,
           itemIds: [],
         };
       }
 
-      // Sort items by sort_order within each column
       const sortedItems = [...items].sort((a, b) => a.sort_order - b.sort_order);
 
-      // Add items to their columns
       for (const item of sortedItems) {
         boardItems[item.id] = {
           id: item.id,
           text: item.text,
           checked: item.checked,
         };
-        if (boardColumns[item.column_id]) {
-          boardColumns[item.column_id].itemIds.push(item.id);
+        if (boardColumns[item.category_id]) {
+          boardColumns[item.category_id].itemIds.push(item.id);
         }
       }
 
       return {
         items: boardItems,
         columns: boardColumns,
-        columnOrder: sortedColumns.map((c) => c.id),
+        columnOrder: sortedCategories.map((c) => c.id),
       };
     },
     []
   );
 
   // Initialize list if it doesn't exist
-  const initializeList = useCallback(async () => {
+  const initializeList = useCallback(async (): Promise<string | null> => {
     const desiredTemplateId = getStoreTemplateId(storeKey);
 
     // Check if list exists
     const { data: existingList, error: checkError } = await supabase
       .from("grocery_lists")
-      .select("id, store, store_template_id")
+      .select("id, store_template_id")
       .eq("id", listId)
       .single();
 
@@ -213,10 +135,10 @@ export function useSupabaseBoard(listId: string, store?: StoreKey, shouldSyncSto
     if (checkError && checkError.code !== "PGRST116") {
       console.error("Error checking list:", checkError.message, checkError.code, checkError.details);
       setError(`Failed to check list: ${checkError.message}`);
-      return false;
+      return null;
     }
 
-    const activeTemplateId = existingList?.store_template_id ?? desiredTemplateId;
+    let activeTemplateId = existingList?.store_template_id ?? desiredTemplateId;
 
     if (
       shouldSyncStore &&
@@ -225,41 +147,40 @@ export function useSupabaseBoard(listId: string, store?: StoreKey, shouldSyncSto
       existingList.store_template_id !== desiredTemplateId
     ) {
       const switched = await switchStoreTemplate(storeKey);
-      if (!switched) return false;
+      if (!switched) return null;
+      activeTemplateId = desiredTemplateId;
     }
 
     if (!existingList) {
       // Create the list
-      const listInsertPayloadWithStore = {
+      const listInsertPayload = {
         id: listId,
-        store: storeKey,
         store_template_id: desiredTemplateId,
       };
       const { error: listError } = await supabase
         .from("grocery_lists")
-        // store/store_template_id columns are expected after migrations
-        .insert(listInsertPayloadWithStore);
+        .insert(listInsertPayload);
 
       if (listError) {
         if (listError.code === "PGRST204" || listError.code === "42703") {
           setError("Database schema is missing store templates. Run the latest migrations.");
-          return false;
+          return null;
         }
         // Handle duplicate key - list was created by another request
         if (listError.code === "23505") {
           // List already exists, this is fine - proceed normally
-          return true;
+          return activeTemplateId;
         }
         console.error("Error creating list:", listError.message, listError.code, listError.details);
         setError(`Failed to create list: ${listError.message}`);
-        return false;
+        return null;
       }
 
     } else {
       if (!existingList.store_template_id) {
         const { error: updateTemplateError } = await supabase
           .from("grocery_lists")
-          .update({ store_template_id: desiredTemplateId, store: storeKey })
+          .update({ store_template_id: desiredTemplateId })
           .eq("id", listId);
 
         if (updateTemplateError) {
@@ -270,67 +191,13 @@ export function useSupabaseBoard(listId: string, store?: StoreKey, shouldSyncSto
             updateTemplateError.details
           );
           // Non-fatal: fall through and continue loading columns/items.
-        }
-      }
-
-      // Ensure template columns exist (handles partial seeding and later template additions)
-      const { data: existingColumns, error: columnsQueryError } = await supabase
-        .from("list_columns")
-        .select("id, sort_order")
-        .eq("list_id", listId);
-
-      if (columnsQueryError) {
-        console.error(
-          "Error checking columns:",
-          columnsQueryError.message,
-          columnsQueryError.code,
-          columnsQueryError.details
-        );
-        // Don't fail initialization on this; fetchBoard will show errors if needed
-        return true;
-      }
-
-      const { data: templateColumns, error: templateColumnsError } = await supabase
-        .from("store_template_columns")
-        .select("id, title, sort_order")
-        .eq("template_id", activeTemplateId)
-        .order("sort_order");
-
-      if (templateColumnsError) {
-        console.error(
-          "Error fetching template columns:",
-          templateColumnsError.message,
-          templateColumnsError.code,
-          templateColumnsError.details
-        );
-        return true;
-      }
-
-      const existingIds = new Set((existingColumns ?? []).map((c: { id: string; sort_order: number | null }) => c.id));
-      const missingColumns = (templateColumns ?? []).filter((col) => !existingIds.has(col.id));
-      if (missingColumns.length > 0) {
-        const columnsToInsert = missingColumns.map((col) => ({
-          id: col.id,
-          list_id: listId,
-          title: col.title,
-          sort_order: col.sort_order ?? 0,
-        }));
-
-        const { error: columnsError } = await supabase.from("list_columns").insert(columnsToInsert);
-        if (columnsError && columnsError.code !== "23505") {
-          console.error(
-            "Error creating missing columns (existing list):",
-            columnsError.message,
-            columnsError.code,
-            columnsError.details
-          );
-          setError(`Failed to create columns: ${columnsError.message}`);
-          return false;
+        } else {
+          activeTemplateId = desiredTemplateId;
         }
       }
     }
 
-    return true;
+    return activeTemplateId;
   }, [listId, supabase, storeKey, shouldSyncStore, switchStoreTemplate]);
 
   // Fetch board data from Supabase
@@ -341,22 +208,57 @@ export function useSupabaseBoard(listId: string, store?: StoreKey, shouldSyncSto
     setError(null);
 
     try {
-      const initialized = await initializeList();
-      if (!initialized) {
+      const templateId = await initializeList();
+      if (!templateId) {
         setIsLoading(false);
         return;
       }
 
-      // Fetch columns
-      const { data: columns, error: columnsError } = await supabase
-        .from("list_columns")
-        .select("*")
-        .eq("list_id", listId)
+      setActiveTemplateId(templateId);
+
+      const { data: templateRows, error: templateError } = await supabase
+        .from("store_template_category_order")
+        .select("category_id, sort_order")
+        .eq("template_id", templateId)
         .order("sort_order");
 
-      if (columnsError) {
-        console.error("Error fetching columns:", columnsError);
-        setError("Failed to load columns");
+      if (templateError) {
+        console.error("Error fetching template categories:", templateError);
+        setError("Failed to load categories");
+        setIsLoading(false);
+        return;
+      }
+
+      const templateCategoryIds = [...new Set((templateRows ?? []).map((row) => row.category_id))];
+      const categoryTitleById = new Map<string, string>();
+      if (templateCategoryIds.length > 0) {
+        const { data: categoryRows, error: categoryError } = await supabase
+          .from("categories")
+          .select("id, title")
+          .in("id", templateCategoryIds);
+
+        if (categoryError) {
+          console.error("Error fetching categories:", categoryError);
+          setError("Failed to load categories");
+          setIsLoading(false);
+          return;
+        }
+
+        for (const row of categoryRows ?? []) {
+          categoryTitleById.set(row.id, row.title);
+        }
+      }
+
+      const templateCategories: CategoryColumn[] = (templateRows ?? []).map(
+        (row: TemplateCategoryRow) => ({
+          id: row.category_id,
+          title: categoryTitleById.get(row.category_id) ?? row.category_id,
+          sort_order: row.sort_order,
+        })
+      );
+
+      if (templateCategories.length === 0) {
+        setError("Store template has no categories.");
         setIsLoading(false);
         return;
       }
@@ -375,7 +277,55 @@ export function useSupabaseBoard(listId: string, store?: StoreKey, shouldSyncSto
         return;
       }
 
-      const newBoard = dbToBoardState(columns || [], items || []);
+      const templateCategoryIdSet = new Set(templateCategories.map((category) => category.id));
+      const extraCategoryIds = [
+        ...new Set(
+          (items ?? [])
+            .map((item) => item.category_id)
+            .filter((categoryId) => !templateCategoryIdSet.has(categoryId))
+        ),
+      ];
+
+      let extraCategories: CategoryColumn[] = [];
+      if (extraCategoryIds.length > 0) {
+        const { data: extraRows, error: extraError } = await supabase
+          .from("categories")
+          .select("id, title")
+          .in("id", extraCategoryIds);
+
+        if (extraError) {
+          console.error("Error fetching extra categories:", extraError);
+          setError("Failed to load extra categories");
+          extraCategories = extraCategoryIds.map((id, index) => ({
+            id,
+            title: id,
+            sort_order: 1000000 + index,
+          }));
+        } else {
+          const baseSort = 1000000;
+          const sortedExtra = [...(extraRows ?? [])].sort((a, b) =>
+            a.title.localeCompare(b.title)
+          );
+          extraCategories = sortedExtra.map((row, index) => ({
+            id: row.id,
+            title: row.title,
+            sort_order: baseSort + index,
+          }));
+
+          const foundIds = new Set((extraRows ?? []).map((row) => row.id));
+          for (const missingId of extraCategoryIds) {
+            if (!foundIds.has(missingId)) {
+              extraCategories.push({
+                id: missingId,
+                title: missingId,
+                sort_order: baseSort + extraCategories.length,
+              });
+            }
+          }
+        }
+      }
+
+      const newBoard = dbToBoardState([...templateCategories, ...extraCategories], items || []);
       setBoardState(newBoard);
       setIsInitialized(true);
     } catch (err) {
@@ -420,16 +370,24 @@ export function useSupabaseBoard(listId: string, store?: StoreKey, shouldSyncSto
       )
       .subscribe();
 
-    // Subscribe to changes on list_columns
-    const columnsChannel = supabase
-      .channel(`list_columns:${listId}`)
+    return () => {
+      supabase.removeChannel(itemsChannel);
+    };
+     
+  }, [listId, supabase, fetchBoard, isInitialized]);
+
+  useEffect(() => {
+    if (!activeTemplateId) return;
+
+    const templateChannel = supabase
+      .channel(`store_template_category_order:${activeTemplateId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
-          table: "list_columns",
-          filter: `list_id=eq.${listId}`,
+          table: "store_template_category_order",
+          filter: `template_id=eq.${activeTemplateId}`,
         },
         () => {
           fetchBoard(false);
@@ -438,11 +396,9 @@ export function useSupabaseBoard(listId: string, store?: StoreKey, shouldSyncSto
       .subscribe();
 
     return () => {
-      supabase.removeChannel(itemsChannel);
-      supabase.removeChannel(columnsChannel);
+      supabase.removeChannel(templateChannel);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [listId, supabase]);
+  }, [activeTemplateId, fetchBoard, supabase]);
 
   // Update board state and sync to Supabase
   const setBoard = useCallback(
@@ -477,7 +433,7 @@ export function useSupabaseBoard(listId: string, store?: StoreKey, shouldSyncSto
         const itemsToUpsert: Array<{
           id: string;
           list_id: string;
-          column_id: string;
+          category_id: string;
           text: string;
           checked: boolean;
           sort_order: number;
@@ -492,7 +448,7 @@ export function useSupabaseBoard(listId: string, store?: StoreKey, shouldSyncSto
               itemsToUpsert.push({
                 id: item.id,
                 list_id: listId,
-                column_id: colId,
+                category_id: colId,
                 text: item.text,
                 checked: item.checked,
                 sort_order: i,

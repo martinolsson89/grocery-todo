@@ -14,45 +14,36 @@ export type Database = {
           id: string;
           created_at: string;
           updated_at: string;
-          store: string | null;
           store_template_id: string;
         };
         Insert: {
           id: string;
           created_at?: string;
           updated_at?: string;
-          store?: string | null;
           store_template_id: string;
         };
         Update: {
           id?: string;
           created_at?: string;
           updated_at?: string;
-          store?: string | null;
           store_template_id?: string;
         };
         Relationships: [];
       };
-      list_columns: {
+      categories: {
         Row: {
           id: string;
-          list_id: string;
           title: string;
-          sort_order: number;
           created_at: string;
         };
         Insert: {
           id: string;
-          list_id: string;
           title: string;
-          sort_order?: number;
           created_at?: string;
         };
         Update: {
           id?: string;
-          list_id?: string;
           title?: string;
-          sort_order?: number;
           created_at?: string;
         };
         Relationships: [];
@@ -61,7 +52,7 @@ export type Database = {
         Row: {
           id: string;
           list_id: string;
-          column_id: string;
+          category_id: string;
           text: string;
           checked: boolean;
           sort_order: number;
@@ -71,7 +62,7 @@ export type Database = {
         Insert: {
           id: string;
           list_id: string;
-          column_id: string;
+          category_id: string;
           text: string;
           checked?: boolean;
           sort_order?: number;
@@ -81,7 +72,7 @@ export type Database = {
         Update: {
           id?: string;
           list_id?: string;
-          column_id?: string;
+          category_id?: string;
           text?: string;
           checked?: boolean;
           sort_order?: number;
@@ -141,27 +132,21 @@ export type Database = {
         };
         Relationships: [];
       };
-      store_template_columns: {
+      store_template_category_order: {
         Row: {
           template_id: string;
-          id: string;
-          title: string;
+          category_id: string;
           sort_order: number;
-          created_at: string;
         };
         Insert: {
           template_id: string;
-          id: string;
-          title: string;
-          sort_order?: number;
-          created_at?: string;
+          category_id: string;
+          sort_order: number;
         };
         Update: {
           template_id?: string;
-          id?: string;
-          title?: string;
+          category_id?: string;
           sort_order?: number;
-          created_at?: string;
         };
         Relationships: [];
       };
@@ -211,6 +196,12 @@ export type Database = {
         Args: Record<string, never>;
         Returns: number;
       };
+      get_list_render: {
+        Args: {
+          list_id: string;
+        };
+        Returns: Json;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
@@ -218,6 +209,8 @@ export type Database = {
 };
 
 export type GroceryList = Database["public"]["Tables"]["grocery_lists"]["Row"];
-export type ListColumn = Database["public"]["Tables"]["list_columns"]["Row"];
+export type Category = Database["public"]["Tables"]["categories"]["Row"];
 export type ListItem = Database["public"]["Tables"]["list_items"]["Row"];
 export type Recipe = Database["public"]["Tables"]["recipes"]["Row"];
+export type StoreTemplateCategoryOrder =
+  Database["public"]["Tables"]["store_template_category_order"]["Row"];
