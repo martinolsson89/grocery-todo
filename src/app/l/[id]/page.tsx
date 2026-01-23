@@ -480,8 +480,21 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
         onOpenChange={handleBackOpenChange}
         onConfirm={handleBackConfirm}
         title="Lämna listan?"
-        description="Om du lämnar listan utan att kopiera länken så kan du inte komma tillbaka, lämna ändå?"
+        description="Om du lämnar listan utan att kopiera länken, kan du inte komma tillbaka, lämna ändå?"
         confirmLabel="Lämna"
+        copied={copied}
+        hasCopiedLink={hasCopiedLink}
+        onCopyLink={async () => {
+          try {
+            await navigator.clipboard.writeText(window.location.href);
+            setCopied(true);
+            setHasCopiedLink(true);
+            setTimeout(() => setCopied(false), 2000);
+            toast.success("Länken är kopierad!");
+          } catch {
+            setCopied(false);
+          }
+        } }
       />
 
       <ListToolbar

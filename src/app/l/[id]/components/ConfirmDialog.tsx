@@ -20,6 +20,9 @@ interface ConfirmDialogProps {
   description: string;
   confirmLabel: string;
   confirmVariant?: ComponentProps<typeof Button>["variant"];
+  copied?: boolean;
+  onCopyLink?: () => void;
+  hasCopiedLink?: boolean;
 }
 
 export function ConfirmDialog({
@@ -29,7 +32,8 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel,
-  confirmVariant
+  onCopyLink,
+  hasCopiedLink
 }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -46,12 +50,24 @@ export function ConfirmDialog({
         </DialogHeader>
 
         <DialogFooter className="gap-2 sm:gap-2">
+          {!onCopyLink ? (
           <DialogClose asChild>
             <Button type="button" variant="outline">
               Avbryt
             </Button>
           </DialogClose>
-          <Button type="button" variant={confirmVariant ?? "destructive"} onClick={onConfirm}>
+         ) : null }
+          {onCopyLink ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCopyLink}
+              aria-label="Kopiera länk"
+            >
+              {hasCopiedLink ? "✓" : "Kopiera länk"}
+            </Button>
+          ) : null}
+          <Button type="button" variant={hasCopiedLink ? "success" : "destructive"} onClick={onConfirm}>
             {confirmLabel}
           </Button>
         </DialogFooter>
