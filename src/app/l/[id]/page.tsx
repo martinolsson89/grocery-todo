@@ -74,6 +74,7 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
   const [editOpen, setEditOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
+  const [editColumn, setEditColumn] = useState<string | null>(null);
 
   const [duplicateOpen, setDuplicateOpen] = useState(false);
   const [duplicateExistingId, setDuplicateExistingId] = useState<string | null>(null);
@@ -294,8 +295,10 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
     const current = board.items[id];
     if (!current) return;
 
+    const currentColumn = findContainer(board, id) ?? board.columnOrder[0] ?? null;
     setEditId(id);
     setEditText(current.text);
+    setEditColumn(currentColumn);
     setEditOpen(true);
   }
 
@@ -303,8 +306,10 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
     const current = board.items[id];
     if (!current) return;
 
+    const currentColumn = findContainer(board, id) ?? board.columnOrder[0] ?? null;
     setEditId(id);
     setEditText(nextText);
+    setEditColumn(currentColumn);
     setEditOpen(true);
   }
 
@@ -322,6 +327,7 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
     if (!open) {
       setEditId(null);
       setEditText("");
+      setEditColumn(null);
     }
   }
 
@@ -340,6 +346,18 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
 
       const next: BoardState = structuredClone(prev);
       next.items[id].text = nextText;
+
+      const currentColumn = findContainer(next, id);
+      const desiredColumn =
+        editColumn && next.columns[editColumn] ? editColumn : currentColumn;
+
+      if (currentColumn && desiredColumn && currentColumn !== desiredColumn) {
+        next.columns[currentColumn].itemIds = next.columns[currentColumn].itemIds.filter(
+          (x) => x !== id
+        );
+        next.columns[desiredColumn].itemIds.unshift(id);
+      }
+
       return next;
     });
 
@@ -463,6 +481,10 @@ export default function ListPage({ params }: { params: Promise<{ id: string }> }
         onOpenChange={handleEditOpenChange}
         text={editText}
         onTextChange={setEditText}
+        columnOrder={board.columnOrder}
+        columns={board.columns}
+        selectedColumn={editColumn}
+        onColumnChange={setEditColumn}
         onSubmit={saveEdit}
       />
 
